@@ -311,7 +311,8 @@ options_templates.update(options_section(('backends', "Backend Settings"), {
     "cudnn_deterministic": OptionInfo(False, "Deterministic mode"),
     "diffusers_fuse_projections": OptionInfo(False, "Fused projections"),
     "torch_expandable_segments": OptionInfo(False, "Expandable segments"),
-    "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "Full-depth cuDNN benchmark"),
+    "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
+    "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
     "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
     "torch_tunable_ops": OptionInfo("default", "Tunable ops", gr.Radio, {"choices": ["default", "true", "false"]}),
     "torch_tunable_limit": OptionInfo(30, "Tunable ops limit", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
@@ -740,10 +741,6 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
-
-    "extra_networks_desc_lookup_sep": OptionInfo("<h2>Model Description Lookup</h2>", "", gr.HTML),
-    "extra_networks_desc_use_json": OptionInfo(False, "Get full description from JSON", gr.Checkbox),
-    "extra_networks_desc_lookup": OptionInfo("", "Preferred JSON source for description (Comma separated list) [Must be in the same directory as the model file. Values starting with '.' will be based on the file name of the model.] ", gr.Textbox),
 }))
 
 options_templates.update(options_section(('extensions', "Extensions"), {

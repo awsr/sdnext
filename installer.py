@@ -613,7 +613,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    sha = '9f3c0fdcd859905c2c13ec47f10eb0250d2576ac' # diffusers commit hash
+    sha = '051c8a1c0f5c393a447bef18081fdf94c2a3ab9e' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = pkg_resources.working_set.by_key.get('diffusers', None)
@@ -1288,19 +1288,19 @@ def install_optional():
     install('--no-build-isolation git+https://github.com/Disty0/GFPGAN@ae0f7e44fafe0ef4716f3c10067f8f379b74c21c', 'gfpgan', ignore=True, quiet=True)
     install('av', ignore=True, quiet=True)
     install('beautifulsoup4', ignore=True, quiet=True)
-    install('bitsandbytes==0.47.0', ignore=True, quiet=True)
     install('clean-fid', ignore=True, quiet=True)
     install('clip_interrogator==0.6.0', ignore=True, quiet=True)
     install('Cython', ignore=True, quiet=True)
     install('gguf', ignore=True, quiet=True)
-    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     install('hf_transfer', ignore=True, quiet=True)
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
-    install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
-    install('torchao==0.10.0', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
+    install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
+    # install('torchao==0.10.0', ignore=True, quiet=True)
+    # install('bitsandbytes==0.47.0', ignore=True, quiet=True)
+    # install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     try:
         import gguf
         scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
@@ -1442,8 +1442,7 @@ def get_version(force=False):
                 'updated': updated,
                 'hash': githash,
                 'branch': branch_name.replace('\n', ''),
-                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
-                'fork': origin.replace('\n', '').split('/sdnext')[0].split('/')[-1]
+                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
             }
         except Exception:
             version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
@@ -1534,7 +1533,6 @@ def check_version(reset=True): # pylint: disable=unused-argument
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
     branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
-    fork_name = ver['fork'] if ver is not None and 'fork' in ver else 'vladmandic'
     if args.version or args.skip_git:
         return
     check_ui(ver)
@@ -1549,7 +1547,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         return
     commits = None
     try:
-        commits = requests.get(f'https://api.github.com/repos/{fork_name}/sdnext/branches/{branch_name}', timeout=10).json()
+        commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
         if commits['commit']['sha'] != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False

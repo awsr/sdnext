@@ -1,7 +1,6 @@
 import json
 import html
 import os
-import re
 import shutil
 import platform
 import subprocess
@@ -352,7 +351,8 @@ def create_refresh_button(refresh_component, refresh_method, refreshed_args = No
 
 def create_override_inputs(tab): # pylint: disable=unused-argument
     with gr.Row(elem_id=f"{tab}_override_settings_row"):
-        override_settings = gr.Dropdown([], value=None, label="Override settings", visible=False, elem_id=f"{tab}_override_settings", multiselect=True)
+        visible = tab == 'control'
+        override_settings = gr.Dropdown([], value=None, label="Override settings", visible=visible, elem_id=f"{tab}_override_settings", multiselect=True)
         override_settings.change(fn=lambda x: gr.Dropdown.update(visible=len(x) > 0), inputs=[override_settings], outputs=[override_settings])
     return override_settings
 
@@ -410,30 +410,21 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text: str):
-    token_count = [0]
+def update_token_counter(text):
+    token_count = 0
     max_length = 75
-    is_visible = False
     if shared.state.job_count > 0:
         shared.log.info('Tokenizer busy')
-        return f"<span class='gr-box gr-text-input'>-- / {max_length}</span>"
+        return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
-    if shared.opts.sd_textencder_linebreak and shared.opts.prompt_attention == "native":
-        # re.split will return as a list even if there are no matches
-        prompt_list = re.split(r"\bBREAK\b|\n", prompt)
-    elif shared.opts.prompt_attention == "native":
-        prompt_list = re.split(r"\bBREAK\b", prompt)
-    else:
-        prompt_list = [prompt]
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
         has_bos_token = shared.sd_model.tokenizer.bos_token_id is not None
         has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
-        ids = shared.sd_model.tokenizer(prompt_list)
+        ids = shared.sd_model.tokenizer(prompt)
         ids = getattr(ids, 'input_ids', [])
-        token_count = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
-        is_visible = len(token_count) > 1 or (len(token_count) == 1 and token_count[0] > 0)
+        token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
         max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
-    return gr.update(value=f"<span class='gr-box gr-text-input' title='{sum(token_count)}'>{token_count} / {max_length}</span>", visible=is_visible)
+    return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)
