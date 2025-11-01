@@ -1443,7 +1443,7 @@ def get_version(force=False):
                 'hash': githash,
                 'branch': branch_name.replace('\n', ''),
                 'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
-                'fork': origin.replace('\n', '').split('/sdnext')[0].split('/')[-1]
+                'fork': origin.split('/sdnext')[0].split('/')[-1]
             }
         except Exception:
             version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
