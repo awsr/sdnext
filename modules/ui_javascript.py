@@ -96,8 +96,9 @@ def reload_javascript():
 
     css_base = theme.reload_gradio_theme()
     css_timesheet = "timesheet.css"
+    css_global = "global.css"
 
-    css = html_css([css_base, css_timesheet])
+    css = html_css([css_base, css_timesheet, css_global])
     body = html_body()
 
     def template_response(*args, **kwargs):
