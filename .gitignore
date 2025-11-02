@@ -64,6 +64,10 @@ tunableop_results*.csv
 /localizations
 .*/
 
+# python module builds
+/triton
+/flash-attention
+
 # force included
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
