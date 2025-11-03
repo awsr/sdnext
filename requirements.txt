@@ -58,7 +58,10 @@ pyparsing==3.2.3
 typing-extensions==4.14.1
 sentencepiece==0.2.1
 
-html_to_markdown[lxml]~=2.5
+# pin for now until requirements handling is improved
+# html_to_markdown[lxml]==2.5.6
+html_to_markdown==2.5.6
+lxml
 
 # additional
 blendmodes
