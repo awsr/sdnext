@@ -333,10 +333,12 @@ class StyleDatabase:
         jobid = shared.state.begin('Styles')
         parsed_positive = []
         parsed_negative = []
-        random_state = random.getstate()
+        deterministic = shared.opts.wildcards_deterministic # micro-optimization
+        if deterministic:
+            random_state = random.getstate()
 
         for i in range(len(prompts)):
-            if seeds[i]> 0:
+            if deterministic and seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = prompts[i]
             prompt = apply_curly_braces_to_prompt(prompt)
@@ -344,7 +346,7 @@ class StyleDatabase:
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_positive.append(prompt)
         for i in range(len(negatives)):
-            if seeds[i]> 0:
+            if deterministic and seeds[i]> 0:
                 random.seed(seeds[i])
             prompt = negatives[i]
             prompt = apply_curly_braces_to_prompt(prompt)
@@ -352,7 +354,8 @@ class StyleDatabase:
             prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
             parsed_negative.append(prompt)
 
-        random.setstate(random_state)
+        if deterministic:
+            random.setstate(random_state)
         shared.state.end(jobid)
         return parsed_positive, parsed_negative
 

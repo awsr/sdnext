@@ -391,7 +391,8 @@
   {"id":"","label":"deterministic mode","localized":"","reload":"","hint":"Forces deterministic output across runs. Useful for reproducibility, but may disable some optimizations."},
   {"id":"","label":"no-grad","localized":"","reload":"","hint":"Disables gradient tracking with torch.no_grad. Reduces memory usage and speeds up inference."},
   {"id":"","label":"Inference-mode","localized":"","reload":"","hint":"Like no-grad but stricter. Ensures model runs only in inference mode for safety and speed."},
-  {"id":"","label":"cudamallocasync","localized":"","reload":"","hint":"Uses CUDA async memory allocator. Improves performance and VRAM fragmentation, but may cause instability on some GPUs."}
+  {"id":"","label":"cudamallocasync","localized":"","reload":"","hint":"Uses CUDA async memory allocator. Improves performance and VRAM fragmentation, but may cause instability on some GPUs."},
+  {"id":"","label":"Deterministic Wildcards","localized":"","reload":"","hint":"Use seed to determine wildcard values"}
 ],
 "missing": [
   {"id":"","label":"1st stage","localized":"","reload":"","hint":"1st stage"},

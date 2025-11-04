@@ -727,6 +727,7 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
 
     "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
     "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
+    "wildcards_deterministic": OptionInfo(True, "Deterministic wildcards", gr.Checkbox),
 
     "extra_networks_desc_lookup_sep": OptionInfo("<h2>Model Description Lookup</h2>", "", gr.HTML),
     "extra_networks_desc_use_json": OptionInfo(False, "Get full description from JSON", gr.Checkbox),
