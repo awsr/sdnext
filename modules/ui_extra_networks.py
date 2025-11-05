@@ -52,10 +52,42 @@ preview_map = None
 
 markdown_options = ConversionOptions(
     code_block_style="backticks",
-    newline_style="backslash",
-    wrap=True,
-    wrap_width=80
+    newline_style="backslash"
 )
+
+
+def get_json_info(path: str, extra: list[str]=[]) -> dict | None:
+    """
+    Get meta data from JSON file for the file specified in path.
+
+    Args:
+        path (str): Path of the file you want to get JSON data for.
+        extra (list[str], optional): Additional files to check. Defaults to [].
+
+    Returns:
+        data (dict | None): Dictionary of the JSON data for the file if found, else None.
+    """
+    base_filename = os.path.splitext(path)[0]
+    base_dir = os.path.split(path)[0]
+    user_defined_files: str = shared.opts.extra_networks_desc_lookup or ''
+    exts: list[str] = user_defined_files.split(",") + [".json"] + extra
+    exts = [val.strip() for val in exts] # Remove whitespace
+    exts = list(filter(lambda ex: ex != '' and ex.endswith(".json"), exts)) # Remove empty and invalid
+    for ext_val in exts:
+        if ext_val.startswith("."):
+            fn = base_filename + ext_val
+        else:
+            fn = base_dir + ext_val # If str doesn't start with ".", assume it's a file name
+
+        if os.path.exists(fn):
+            data = shared.readfile(fn, silent=True)
+            if isinstance(data, list):
+                if len(data) > 0:
+                    data = data[0]
+                else:
+                    continue
+            if data:
+                return data # Found data
 
 
 def init_api():
@@ -99,14 +131,14 @@ def init_api():
         # shared.log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
         return JSONResponse({"info": info})
 
-    def get_desc(page: str = "", item: str = "", markdown: bool = False):
+    def get_desc(page: str = "", item: str = ""):
         page = next(iter([x for x in get_pages() if x.name.lower() == page.lower()]), None)
         if page is None:
             return JSONResponse({ 'description': 'none' })
         item = next(iter([x for x in page.items if x['name'].lower() == item.lower()]), None)
         if item is None:
             return JSONResponse({ 'description': 'none' })
-        desc = page.find_description(item.get('filename', None) or item.get('name', None), markdown=markdown)
+        desc = page.find_description(item.get('filename', None) or item.get('name', None))
         if desc is None:
             desc = ''
         # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
@@ -469,19 +501,11 @@ class ExtraNetworksPage:
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
-    def find_description(self, path, info=None, markdown=False):
+    def find_description(self, path, info=None):
         t0 = time.time()
-        class HTMLFilter(HTMLParser):
-            text = ""
-            def handle_data(self, data):
-                self.text += data
-            def handle_endtag(self, tag):
-                if tag == 'p':
-                    self.text += '\n'
-
         if path is not None:
             txt_fn = os.path.splitext(path)[0] + '.txt'
-            if not (markdown and shared.opts.extra_networks_desc_use_json) and os.path.exists(txt_fn):
+            if not shared.opts.extra_networks_desc_get_full_info and os.path.exists(txt_fn):
                 try:
                     with open(txt_fn, "r", encoding="utf-8", errors="replace") as f:
                         txt = f.read()
@@ -493,13 +517,8 @@ class ExtraNetworksPage:
             if info is None:
                 info = self.find_info(path)
         desc = info.get('description', '') or ''
-        if markdown:
-            # TODO: Try to preprocess HTML and locally cache images (basename_cache/*)
-            desc = to_markdown(desc, markdown_options)
-        else:
-            f = HTMLFilter()
-            f.feed(desc)
-            desc = f.text
+        # TODO: Try to preprocess HTML and locally cache images (basename_cache/*)
+        desc = to_markdown(desc, markdown_options)
         t1 = time.time()
         self.desc_time += t1-t0
         return "No description available" if desc == '' else desc
@@ -510,27 +529,7 @@ class ExtraNetworksPage:
             return data
         if path is not None:
             t0 = time.time()
-            base_filename = os.path.splitext(path)[0]
-            base_dir = os.path.split(path)[0]
-            exts_str: str = shared.opts.extra_networks_desc_lookup or ''
-            exts: list[str] = exts_str.split(",") + [".json", "model_index.json"]
-            exts = [val.strip() for val in exts] # Remove whitespace
-            exts = list(filter(lambda item: item != '', exts)) # Remove empty
-            for ext_val in exts:
-                if ext_val.endswith("json"):
-                    if ext_val.startswith("."):
-                        fn = base_filename + ext_val
-                    else:
-                        fn = base_dir + ext_val # If str doesn't start with ".", assume it's a file name
-                else:
-                    continue # Skip non-json files
-                if os.path.exists(fn):
-                    data = shared.readfile(fn, silent=True)
-                    if not data:
-                        continue # Try next file
-                    break # Found data
-            if isinstance(data, list):
-                data = data[0]
+            data = get_json_info(path, ["model_index.json"])
             t1 = time.time()
             self.info_time += t1-t0
         return data
@@ -867,7 +866,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if hasattr(item, 'mtime') and item.mtime is not None:
                 stat_mtime = item.mtime
             desc = item.description
-            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True)
+            fullinfo = get_json_info(item.filename)
             if 'modelVersions' in fullinfo: # sanitize massive objects
                 fullinfo['modelVersions'] = []
             info = fullinfo
@@ -879,7 +878,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 item.prompt = prompt
             if negative is not None and len(negative) > 0:
                 item.negative = negative
-            if description is not None and len(description) > 0:
+            if shared.opts.extra_networks_desc_get_full_info and fullinfo['description'] is not None:
+                item.description = fullinfo['description']
+            elif description is not None and len(description) > 0:
                 item.description = description
             if wildcards is not None and len(wildcards) > 0:
                 item.wildcards = wildcards
@@ -971,7 +972,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             desc, # gr.textbox
             info, # gr.json
             meta, # gr.json
-            description, # gr.textbox
+            description, # gr.markdown
             gr.update(value=prompt, visible=is_style), # gr.textbox
             gr.update(value=negative, visible=is_style), # gr.textbox
             gr.update(value=parameters, visible=is_style), # gr.textbox

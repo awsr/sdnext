@@ -35,7 +35,7 @@ class ExtraNetworksPageTextualInversion(ui_extra_networks.ExtraNetworksPage):
                 "mtime": mtime,
                 "size": size,
                 "info": info,
-                "description": self.find_description(embedding.filename, info, markdown=True),
+                "description": self.find_description(embedding.filename, info),
             }
         except Exception as e:
             shared.log.debug(f'Networks error: type=embedding file="{embedding.filename}" {e}')

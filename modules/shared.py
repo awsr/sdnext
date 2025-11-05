@@ -730,8 +730,8 @@ options_templates.update(options_section(('extra_networks', "Networks"), {
     "wildcards_deterministic": OptionInfo(True, "Deterministic wildcards", gr.Checkbox),
 
     "extra_networks_desc_lookup_sep": OptionInfo("<h2>Model Description Lookup</h2>", "", gr.HTML),
-    "extra_networks_desc_use_json": OptionInfo(False, "Get full description from JSON", gr.Checkbox),
-    "extra_networks_desc_lookup": OptionInfo("", "Preferred JSON source for description (Comma separated list) [Must be in the same directory as the model file. Values starting with '.' will be based on the file name of the model.] ", gr.Textbox),
+    "extra_networks_desc_get_full_info": OptionInfo(False, "Get full description and ignore '.txt' summaries", gr.Checkbox),
+    "extra_networks_desc_lookup": OptionInfo("", "Preferred JSON source for info (Comma separated list) [Must be in the same directory as the model file. Values starting with '.' will be based on the file name of the model.] ", gr.Textbox),
 }))
 
 options_templates.update(options_section(('extensions', "Extensions"), {
