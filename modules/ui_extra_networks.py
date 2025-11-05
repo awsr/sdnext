@@ -87,6 +87,8 @@ def get_json_info(path: str, extra: list[str]=[]) -> dict | None:
                 else:
                     continue
             if data:
+                if 'html' in data:
+                    data['html'] = '' # Filter out large unused data
                 return data # Found data
 
 
@@ -869,8 +871,6 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             fullinfo = get_json_info(item.filename)
             if 'modelVersions' in fullinfo: # sanitize massive objects
                 fullinfo['modelVersions'] = []
-            if 'html' in fullinfo:
-                fullinfo['html'] = None
             info = fullinfo
             if isinstance(info, list):
                 item.filename = None
