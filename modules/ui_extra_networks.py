@@ -87,8 +87,9 @@ def get_json_info(path: str, extra: list[str]=[]) -> dict | None:
                 else:
                     continue
             if data:
-                if 'html' in data:
-                    data['html'] = '' # Filter out large unused data
+                for key in ['html', 'html0']:
+                    if key in data:
+                        data[key] = '' # Filter out large unused data
                 return data # Found data
 
 
