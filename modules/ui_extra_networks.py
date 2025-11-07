@@ -233,6 +233,22 @@ class ExtraNetworksPage:
         preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         return preview
 
+    def get_exif(self, image: Image.Image):
+        import piexif
+        try:
+            exifinfo = image.getexif()
+            if exifinfo is not None and len(exifinfo) > 0:
+                return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+        except Exception:
+            pass
+        try:
+            exifinfo = image.info.get('parameters', None)
+            if exifinfo is not None and len(exifinfo) > 0:
+                return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+        except Exception:
+            pass
+        return piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump('', encoding="unicode") } })
+
     def create_thumb(self):
         debug(f'EN create-thumb: {self.name}')
         created = 0
@@ -246,6 +262,7 @@ class ExtraNetworksPage:
             img = None
             try:
                 img = Image.open(f)
+                img.load()
             except Exception as e:
                 img = None
                 shared.log.warning(f'Network removing invalid: image={f} {e}')
@@ -253,16 +270,18 @@ class ExtraNetworksPage:
                 if img is None:
                     img = None
                     os.remove(f)
-                elif img.width > 1024 or img.height > 1024 or os.path.getsize(f) > 65536:
+                elif (img.width > 1024) or (img.height > 1024) or (os.path.getsize(f) > 65536):
+                    exif = self.get_exif(img)
                     img = img.convert('RGB')
                     img.thumbnail((512, 512), Image.Resampling.HAMMING)
-                    img.save(fn, quality=50)
+                    img.save(fn, quality=50, exif=exif)
                     img.close()
                     created += 1
             except Exception as e:
                 shared.log.warning(f'Network create thumbnail={f} {e}')
+                errors.display(e, 'thumbnail')
         if created > 0:
-            shared.log.info(f'Network thumbnails: {self.name} created={created}')
+            shared.log.info(f'Network thumbnails: type={self.name} created={created}')
             self.missing_thumbs.clear()
 
     def create_items(self, tabname):
@@ -632,6 +651,8 @@ class ExtraNetworksUi:
 
 
 def create_ui(container, button_parent, tabname, skip_indexing = False):
+    if 'networks' in shared.opts.ui_disabled:
+        return None
     debug(f'EN create-ui: {tabname}')
     ui = ExtraNetworksUi()
     ui.tabname = tabname
@@ -710,6 +731,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 with gr.Tab('Embedded metadata', elem_classes=['extra-details-tabs']):
                     meta = gr.JSON({}, show_label=False)
                     ui.details_components.append(meta)
+                with gr.Tab('Preview metadata', elem_classes=['extra-details-tabs']):
+                    thumb = gr.JSON({}, show_label=False)
+                    ui.details_components.append(thumb)
         with gr.Group(elem_id=f"{tabname}_extra_details_text", elem_classes=["extra-details-text"], visible=False) as ui.details_text:
             description = gr.Textbox(label='Description', lines=1, placeholder="Style description...")
             prompt = gr.Textbox(label='Network prompt', lines=2, placeholder="Prompt...")
@@ -857,7 +881,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     btn_save_style.click(fn=fn_save_style, _js='closeDetailsEN', inputs=[info, description, prompt, negative, extra, wildcards], outputs=[info])
     btn_delete_style.click(fn=fn_delete_style, _js='closeDetailsEN', inputs=[info], outputs=[info])
 
-    def show_details(text, img, desc, info, meta, description, prompt, negative, parameters, wildcards, params, _dummy1=None, _dummy2=None):
+    def show_details(text, img, desc, info, meta, thumb, description, prompt, negative, parameters, wildcards, params, _dummy1=None, _dummy2=None):
+        from modules import images
         page, item = get_item(state, params)
         is_style = (page is not None) and (page.title == 'Style')
         is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
@@ -887,12 +912,14 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 item.description = description
             if wildcards is not None and len(wildcards) > 0:
                 item.wildcards = wildcards
+
             meta = page.metadata.get(item.name, {}) or {}
             if type(meta) is str:
                 try:
                     meta = json.loads(meta)
                 except Exception:
                     meta = {}
+
             if ui.last_item.preview.startswith('data:'):
                 b64str = ui.last_item.preview.split(',',1)[1]
                 img = Image.open(io.BytesIO(base64.b64decode(b64str)))
@@ -900,6 +927,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 img = item.local_preview
             else:
                 img = page.find_preview_file(item.filename)
+
+            _geninfo, thumb = images.read_info_from_image(img)
+
             lora = ''
             model = ''
             style = ''
@@ -975,7 +1005,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             desc, # gr.textbox
             info, # gr.json
             meta, # gr.json
-            description, # gr.markdown
+            thumb, # gr.json
+            description, # gr.textbox
             gr.update(value=prompt, visible=is_style), # gr.textbox
             gr.update(value=negative, visible=is_style), # gr.textbox
             gr.update(value=parameters, visible=is_style), # gr.textbox
@@ -1032,7 +1063,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             params = infotext.parse(text)
         prompt = params.get('Original prompt', None) or params.get('Prompt', '')
         negative = params.get('Original negative', None) or params.get('Negative prompt', '')
-        res = show_details(text=None, img=None, desc=None, info=None, meta=None, parameters=None, description=None, prompt=prompt, negative=negative, wildcards=None, params=params)
+        res = show_details(text=None, img=None, desc=None, info=None, meta=None, thumb=None, parameters=None, description=None, prompt=prompt, negative=negative, wildcards=None, params=params)
         return res
 
     def ui_quicksave_click(name):
@@ -1085,4 +1116,6 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
 
 def setup_ui(ui, gallery: gr.Gallery = None):
+    if ui is None:
+        return
     ui.gallery = gallery
