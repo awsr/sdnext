@@ -17,6 +17,10 @@ function dateToStr(ts) {
   return s;
 }
 
+function htmlEscape(text) {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+}
+
 async function logMonitor() {
   const addLogLine = (line) => {
     try {
