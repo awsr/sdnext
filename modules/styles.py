@@ -339,7 +339,7 @@ class StyleDatabase:
         jobid = shared.state.begin('Styles')
         parsed_positive = []
         parsed_negative = []
-        deterministic = shared.opts.wildcards_deterministic # micro-optimization
+        deterministic = shared.opts.wildcards_deterministic # Protect against setting changing partway through
         if deterministic:
             random_state = random.getstate()
 
