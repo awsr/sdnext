@@ -538,7 +538,7 @@ class ExtraNetworksPage:
                     pass
             if info is None:
                 info = self.find_info(path)
-        desc = info.get('description', '') or ''
+        desc = info.get('description', '') if info is not None else ''
         # TODO: Try to preprocess HTML and locally cache images (basename_cache/*)
         desc = to_markdown(desc, markdown_options)
         t1 = time.time()
