@@ -3,6 +3,7 @@ from typing import Any, Dict
 from fastapi import Depends
 from modules import shared
 from modules.api import models, helpers
+from core import version
 
 
 def post_shutdown():
@@ -12,10 +13,7 @@ def post_shutdown():
 
 def get_motd():
     import requests
-    motd = ''
-    ver = shared.get_version()
-    if ver.get('updated', None) is not None:
-        motd = f"version <b>{ver['hash']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>"
+    motd = f"version <b>{version.hash} {version.updated}</b> <span style='color: var(--primary-500)'>{version.url.split('/')[-1]}</span><br>"
     if shared.opts.motd:
         try:
             res = requests.get('https://vladmandic.github.io/sdnext/motd', timeout=3)
@@ -30,7 +28,7 @@ def get_motd():
     return motd
 
 def get_version():
-    return shared.get_version()
+    return version
 
 def get_platform():
     from installer import get_platform as installer_get_platform

@@ -11,6 +11,7 @@ import platform
 import subprocess
 import cProfile
 import importlib # pylint: disable=deprecated-module
+from core import version
 
 
 class Dot(dict): # dot notation access to dictionary attributes
@@ -20,7 +21,6 @@ class Dot(dict): # dot notation access to dictionary attributes
 
 
 pkg_resources, setuptools, distutils = None, None, None # defined via ensure_base_requirements
-version = None
 current_branch = None
 log = logging.getLogger("sd")
 console = None
@@ -1418,66 +1418,26 @@ def check_extensions():
     return round(newest_all)
 
 
-def get_version(force=False):
-    t_start = time.time()
-    global version # pylint: disable=global-statement
-    if version is None or force:
-        try:
-            subprocess.run('git config log.showsignature false', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-        except Exception:
-            pass
-        try:
-            res = subprocess.run('git log --pretty=format:"%h %ad" -1 --date=short', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            ver = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else '  '
-            githash, updated = ver.split(' ')
-            res = subprocess.run('git remote get-url origin', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            origin = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            branch_name = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            version = {
-                'app': 'sd.next',
-                'updated': updated,
-                'hash': githash,
-                'branch': branch_name.replace('\n', ''),
-                'url': origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', ''),
-                'fork': origin.split('/sdnext')[0].split('/')[-1]
-            }
-        except Exception:
-            version = { 'app': 'sd.next', 'version': 'unknown', 'branch': 'unknown' }
-        cwd = os.getcwd()
-        try:
-            os.chdir('extensions-builtin/sdnext-modernui')
-            res = subprocess.run('git rev-parse --abbrev-ref HEAD', stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell=True, check=True)
-            branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            branch_ui = 'dev' if 'dev' in branch_ui else 'main'
-            version['ui'] = branch_ui
-        except Exception:
-            version['ui'] = 'unknown'
-        os.chdir(cwd)
-    ts('version', t_start)
-    return version
-
-
-def check_ui(ver):
-    def same(ver):
-        core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
-        ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
+def check_ui():
+    def same():
+        core = version.branch
+        ui = version.ui
         return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev')
 
     t_start = time.time()
-    if not same(ver):
-        log.debug(f'Branch mismatch: sdnext={ver["branch"]} ui={ver["ui"]}')
+    if not same():
+        log.debug(f'Branch mismatch: sdnext={version.branch} ui={version.ui}')
         cwd = os.getcwd()
         try:
             os.chdir('extensions-builtin/sdnext-modernui')
-            target = 'dev' if 'dev' in ver['branch'] else 'main'
+            target = 'dev' if version.ui == 'dev' else 'main'
             git('checkout ' + target, ignore=True, optional=True)
             os.chdir(cwd)
-            ver = get_version(force=True)
-            if not same(ver):
-                log.debug(f'Branch synchronized: {ver["branch"]}')
+            version.refresh()
+            if not same():
+                log.debug(f'Branch synchronized: {version.branch}')
             else:
-                log.debug(f'Branch sync failed: sdnext={ver["branch"]} ui={ver["ui"]}')
+                log.debug(f'Branch sync failed: sdnext={version.branch} ui={version.ui}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
         os.chdir(cwd)
@@ -1527,13 +1487,11 @@ def check_version(reset=True): # pylint: disable=unused-argument
     if not os.path.exists('.git'):
         log.warning('Not a git repository')
         args.skip_git = True # pylint: disable=attribute-defined-outside-init
-    ver = get_version()
-    log.info(f'Version: {print_dict(ver)}')
-    branch_name = ver['branch'] if ver is not None and 'branch' in ver else 'master'
-    fork_name = ver['fork'] if ver is not None and 'fork' in ver else 'vladmandic'
+    log.info(f'Version: {version}')
+    branch_name = version.branch if version.branch != 'unknown' else 'master'
     if args.version or args.skip_git:
         return
-    check_ui(ver)
+    check_ui()
     commit = git('rev-parse HEAD')
     global git_commit # pylint: disable=global-statement
     git_commit = commit[:7]
@@ -1545,7 +1503,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         return
     commits = None
     try:
-        commits = requests.get(f'https://api.github.com/repos/{fork_name}/sdnext/branches/{branch_name}', timeout=10).json()
+        commits = requests.get(f'https://api.github.com/repos/{version.fork}/sdnext/branches/{branch_name}', timeout=10).json()
         if commits['commit']['sha'] != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False

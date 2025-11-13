@@ -21,7 +21,7 @@ from modules.options import OptionInfo, options_section
 import modules.memmon
 import modules.styles
 import modules.paths as paths
-from installer import log, print_dict, console, get_version # pylint: disable=unused-import
+from installer import log, print_dict, console # pylint: disable=unused-import
 
 
 class Backend(Enum):
