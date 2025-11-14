@@ -295,6 +295,24 @@ def create_sampler_options(tabname):
     sampler_sigma_adjust_min.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_max.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
 
+    # Do not save the following to ui_config. They are handled here instead.
+    for element in (
+        sampler_sigma,
+        sampler_spacing,
+        sampler_beta,
+        sampler_prediction,
+        sampler_timesteps,
+        sampler_sigma_adjust_val,
+        sampler_sigma_adjust_min,
+        sampler_sigma_adjust_max,
+        sampler_order,
+        sampler_shift,
+        sampler_base_shift,
+        sampler_max_shift,
+        sampler_options,
+    ):
+        element.do_not_save_to_config = True
+
 
 def create_hires_inputs(tab):
     with gr.Accordion(open=False, label="Refine", elem_id=f"{tab}_refine_accordion", elem_classes=["small-accordion"]):
