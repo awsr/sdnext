@@ -32,7 +32,7 @@ class Script(scripts_manager.Script):
         install('thinc==8.3.4')
         install('spacy==3.8.4')
 
-        from scripts import daam # pylint: disable=no-name-in-module
+        from scripts import daam
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'
 

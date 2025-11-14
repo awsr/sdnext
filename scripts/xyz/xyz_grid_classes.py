@@ -1,4 +1,4 @@
-from scripts.xyz.xyz_grid_shared import ( # pylint: disable=no-name-in-module, unused-import
+from scripts.xyz.xyz_grid_shared import ( # pylint: disable=unused-import
     apply_field,
     apply_task_arg,
     apply_task_args,

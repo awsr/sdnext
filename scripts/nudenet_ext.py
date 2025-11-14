@@ -1,10 +1,10 @@
 import time
 import gradio as gr
 from modules import scripts, scripts_postprocessing, processing, images
-from  scripts.nudenet import nudenet # pylint: disable=no-name-in-module
-from  scripts.nudenet import langdetect # pylint: disable=no-name-in-module
-from  scripts.nudenet import imageguard # pylint: disable=no-name-in-module
-from  scripts.nudenet import bannedwords # pylint: disable=no-name-in-module
+from  scripts.nudenet import nudenet
+from  scripts.nudenet import langdetect
+from  scripts.nudenet import imageguard
+from  scripts.nudenet import bannedwords
 
 
 # main ui
