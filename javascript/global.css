@@ -6,10 +6,28 @@
     .gradio-markdown .code_wrap {
         background-color: rgb(128 128 128 / 0.3);
         padding: 0.25rem;
-        overflow-x: scroll;
+        /* overflow-x: scroll; */
+        position: relative;
 
         & .copy_code_button {
-            display: none;
+            position: absolute;
+            margin-block: 0.25rem;
+
+            & > * {
+                display: block;
+            }
+            
+            & > .check {
+                position: absolute;
+                top: 0.25rem;
+                opacity: 0;
+            }
+        }
+
+        & > pre {
+            margin-left: 4rem;
+            margin-right: 1rem;
+            overflow-x: scroll;
         }
     }
 }
