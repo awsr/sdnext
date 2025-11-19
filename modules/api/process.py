@@ -113,7 +113,7 @@ class APIProcess():
         return ResMask(mask=image)
 
     def post_detect(self, req: ReqFace):
-        from modules.shared import yolo
+        from modules.shared import yolo # pylint: disable=no-name-in-module
         image = decode_base64_to_image(req.image)
         jobid = shared.state.begin('API-FACE', api=True)
         images = []
