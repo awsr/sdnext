@@ -3,6 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
+from core.watchdog import monitor
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
@@ -271,7 +272,7 @@ class EmbeddingDatabase:
         text_encoders, tokenizers, hiddensizes = get_text_encoders()
         if not all([text_encoders, tokenizers, hiddensizes]):
             return
-        e_brake = 0
+        monitor.start("load_diffusers_embedding-tokens")
         for embedding in embeddings:
             try:
                 embedding.vector_sizes = [v.shape[-1] for v in embedding.vec]
@@ -284,31 +285,25 @@ class EmbeddingDatabase:
                     embedding.tokens = []
                     self.skipped_embeddings[embedding.name] = embedding
             except Exception as e:
-                e_brake += 1
                 shared.log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
                 self.skipped_embeddings[embedding.name] = embedding
-                if e_brake > 10:
-                    errors.display(e, 'Load embedding')
-                    raise RuntimeError('E-BRAKE TRIGGERED. Too many errors.') from e
+                monitor.update("load_diffusers_embedding-tokens")
         if overwrite:
             shared.log.info(f"Load bundled embeddings: {list(data.keys())}")
             for embedding in embeddings:
                 if embedding.name not in self.skipped_embeddings:
                     deref_tokenizers(embedding.tokens, tokenizers)
         insert_tokens(embeddings, tokenizers)
-        e_brake = 0
+        monitor.start("load_diffusers_embedding-vectors")
         for embedding in embeddings:
             if embedding.name not in self.skipped_embeddings:
                 try:
                     insert_vectors(embedding, tokenizers, text_encoders, hiddensizes)
                     self.register_embedding(embedding, shared.sd_model)
                 except Exception as e:
-                    e_brake += 1
                     shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
                     errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
-                    if e_brake > 10:
-                        errors.display(e, 'Load embedding')
-                        raise RuntimeError('E-BRAKE TRIGGERED. Too many errors.') from e
+                    monitor.update("load_diffusers_embedding-vectors")
         return
 
     def load_from_dir(self, embdir):

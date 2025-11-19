@@ -3,6 +3,7 @@ import re
 import time
 import torch
 import diffusers.models.lora
+from core.watchdog import monitor
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 
@@ -136,16 +137,13 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
                 t1 = time.time()
                 l.timer.move += t1 - t0
         except RuntimeError as e:
-            e_brake = e_brake + 1
             l.extra_network_lora.errors[net.name] = l.extra_network_lora.errors.get(net.name, 0) + 1
             module_name = net.modules.get(network_layer_name, None)
             shared.log.error(f'Network: type=LoRA name="{net.name}" module="{module_name}" layer="{network_layer_name}" apply weight: {e}')
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
-            if e_brake > 10:
-                errors.display(e, 'LoRA')
-                raise RuntimeError('E-BRAKE TRIGGERED. Too many errors.') from e
+            monitor.update("network_calc_weights")
         continue
     return batch_updown, batch_ex_bias
 
