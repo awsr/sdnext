@@ -1,3 +1,5 @@
+from typing import Final
+
 class WatchdogError(Exception):
     def __init__(self, name:str, *args):
         super().__init__(*args)
@@ -26,4 +28,4 @@ class Watchdog():
         else:
             raise WatchdogWarning(f'Watchdog for "{name}" has not been started')
 
-monitor = Watchdog()
+watchdog: Final = Watchdog()

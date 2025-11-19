@@ -3,7 +3,7 @@ import re
 import time
 import torch
 import diffusers.models.lora
-from core.watchdog import monitor
+from core.monitoring import watchdog
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 
@@ -142,7 +142,7 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
-            monitor.update("network_calc_weights")
+            watchdog.update("network_calc_weights")
         continue
     return batch_updown, batch_ex_bias
 

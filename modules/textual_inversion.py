@@ -3,7 +3,7 @@ import os
 import time
 import torch
 import safetensors.torch
-from core.watchdog import monitor
+from core.monitoring import watchdog
 from modules import shared, devices, errors
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
@@ -272,7 +272,7 @@ class EmbeddingDatabase:
         text_encoders, tokenizers, hiddensizes = get_text_encoders()
         if not all([text_encoders, tokenizers, hiddensizes]):
             return
-        monitor.start("load_diffusers_embedding-tokens")
+        watchdog.start("load_diffusers_embedding-tokens")
         for embedding in embeddings:
             try:
                 embedding.vector_sizes = [v.shape[-1] for v in embedding.vec]
@@ -287,14 +287,14 @@ class EmbeddingDatabase:
             except Exception as e:
                 shared.log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
                 self.skipped_embeddings[embedding.name] = embedding
-                monitor.update("load_diffusers_embedding-tokens")
+                watchdog.update("load_diffusers_embedding-tokens")
         if overwrite:
             shared.log.info(f"Load bundled embeddings: {list(data.keys())}")
             for embedding in embeddings:
                 if embedding.name not in self.skipped_embeddings:
                     deref_tokenizers(embedding.tokens, tokenizers)
         insert_tokens(embeddings, tokenizers)
-        monitor.start("load_diffusers_embedding-vectors")
+        watchdog.start("load_diffusers_embedding-vectors")
         for embedding in embeddings:
             if embedding.name not in self.skipped_embeddings:
                 try:
@@ -303,7 +303,7 @@ class EmbeddingDatabase:
                 except Exception as e:
                     shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
                     errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
-                    monitor.update("load_diffusers_embedding-vectors")
+                    watchdog.update("load_diffusers_embedding-vectors")
         return
 
     def load_from_dir(self, embdir):
