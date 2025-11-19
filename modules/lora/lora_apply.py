@@ -84,7 +84,6 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             pass
     batch_updown = None
     batch_ex_bias = None
-    e_brake = 0
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     for net in loaded:
         module = net.modules.get(network_layer_name, None)
