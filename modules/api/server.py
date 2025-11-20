@@ -1,6 +1,7 @@
 import time
 from typing import Any, Dict
 from fastapi import Depends
+from core.info import systeminfo, version
 from modules import shared
 from modules.api import models, helpers
 
@@ -13,9 +14,8 @@ def post_shutdown():
 def get_motd():
     import requests
     motd = ''
-    ver = shared.get_version()
-    if ver.get('updated', None) is not None:
-        motd = f"version <b>{ver['hash']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>"
+    if version.updated != "unknown":
+        motd = f"version <b>{version.hash} {version.updated}</b> <span style='color: var(--primary-500)'>{version.url.split('/')[-1]}</span><br>"
     if shared.opts.motd:
         try:
             res = requests.get('https://vladmandic.github.io/sdnext/motd', timeout=3)
@@ -30,12 +30,11 @@ def get_motd():
     return motd
 
 def get_version():
-    return shared.get_version()
+    return version.to_dict()
 
 def get_platform():
-    from installer import get_platform as installer_get_platform
     from modules.loader import get_packages as loader_get_packages
-    return { **installer_get_platform(), **loader_get_packages() }
+    return systeminfo.to_dict() | loader_get_packages() # Python 3.9+ syntax
 
 def get_log(req: models.ReqGetLog = Depends()):
     lines = shared.log.buffer[:req.lines] if req.lines > 0 else shared.log.buffer.copy()

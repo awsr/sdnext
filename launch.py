@@ -6,6 +6,7 @@ import time
 import shlex
 import subprocess
 from functools import lru_cache
+from core.info import systeminfo
 import installer
 
 
@@ -250,7 +251,7 @@ def main():
     if args.skip_git or args.skip_all:
         installer.log.info('Skipping GIT operations')
     installer.check_version()
-    installer.log.info(f'Platform: {installer.print_dict(installer.get_platform())}')
+    installer.log.info(f'Platform: {systeminfo.to_log()}')
     installer.check_venv()
     installer.log.info(f'Args: {sys.argv[1:]}')
     if not args.skip_env or args.skip_all:
