@@ -908,6 +908,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 item.negative = negative
             if shared.opts.extra_networks_desc_get_full_info and fullinfo['description'] is not None:
                 item.description = fullinfo['description']
+                if fullinfo['versionDescription'] is not None:
+                    item.description += "<hr><hr>" + fullinfo['versionDescription']
+                item.description = to_markdown(item.description, markdown_options)
+                desc = item.description
             elif description is not None and len(description) > 0:
                 item.description = description
             if wildcards is not None and len(wildcards) > 0:
