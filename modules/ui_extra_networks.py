@@ -857,7 +857,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             return info
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         if hasattr(ui.last_item, 'type') and ui.last_item.type == 'Style':
-            info.update(**{ 'description': description, 'prompt': prompt, 'negative': negative, 'extra': extra, 'wildcards': wildcards })
+            info |= {'description': description, 'prompt': prompt, 'negative': negative, 'extra': extra, 'wildcards': wildcards} # Python 3.9+ dict merge-update syntax
             shared.writefile(info, fn, silent=True)
             shared.log.debug(f'Network save style: item="{ui.last_item.name}" filename="{fn}"')
         return info
