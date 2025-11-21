@@ -324,7 +324,7 @@ class GalleryFile extends HTMLElement {
 
 // methods
 
-const gallerySendImage = (_images) => [currentImage]; // invoked by gadio button
+const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
 
 async function getHash(str, algo = 'SHA-256') {
   try {
