@@ -9,6 +9,7 @@ import base64
 import urllib.parse
 import threading
 from types import SimpleNamespace
+from typing import TYPE_CHECKING
 from pathlib import Path
 from html.parser import HTMLParser
 from collections import OrderedDict
@@ -888,6 +889,8 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
 
         if is_valid:
+            if TYPE_CHECKING:
+                assert item is not None
             stat_size, stat_mtime = modelstats.stat(item.filename)
             if hasattr(item, 'size') and item.size > 0:
                 stat_size = item.size
@@ -895,9 +898,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 stat_mtime = item.mtime
             desc = item.description
             fullinfo = get_json_info(item.filename)
-            if 'modelVersions' in fullinfo: # sanitize massive objects
-                fullinfo['modelVersions'] = []
-            info = fullinfo
+            if fullinfo is not None:
+                if 'modelVersions' in fullinfo: # sanitize massive objects
+                    fullinfo['modelVersions'] = []
+                info = fullinfo
             if isinstance(info, list):
                 item.filename = None
                 shared.log.warning('Network: show details not supported for compound item')
@@ -906,7 +910,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 item.prompt = prompt
             if negative is not None and len(negative) > 0:
                 item.negative = negative
-            if shared.opts.extra_networks_desc_get_full_info and fullinfo['description'] is not None:
+            if shared.opts.extra_networks_desc_get_full_info and fullinfo is not None and getattr(fullinfo, "description", None) is not None:
                 item.description = fullinfo['description']
                 if fullinfo['versionDescription'] is not None:
                     item.description += "<hr><hr>" + fullinfo['versionDescription']
