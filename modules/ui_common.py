@@ -417,7 +417,7 @@ def update_token_counter(text: str):
     is_visible = False
     if shared.state.job_count > 0:
         shared.log.info('Tokenizer busy')
-        return f"<span class='gr-box gr-text-input'>-- / {max_length}</span>"
+        return gr.update(value=f"<span class='gr-box gr-text-input'>-- / {max_length}</span>", visible=True)
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
     if shared.opts.sd_textencder_linebreak and shared.opts.prompt_attention == "native":
