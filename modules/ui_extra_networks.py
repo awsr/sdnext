@@ -17,6 +17,7 @@ import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
 from html_to_markdown import convert as to_markdown, ConversionOptions
+from core.util import dict_has_nonempty_str, empty_instance
 from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 
 
@@ -57,28 +58,27 @@ markdown_options = ConversionOptions(
 )
 
 
-def get_json_info(path: str, extra: list[str]=[]) -> dict | None:
+def find_json_info(path: str, extra: list[str]=[]) -> dict | None:
     """
-    Get meta data from JSON file for the file specified in path.
+    Find and get metadata from JSON for the file specified in path.
 
     Args:
         path (str): Path of the file you want to get JSON data for.
         extra (list[str], optional): Additional files to check. Defaults to [].
 
     Returns:
-        data (dict | None): Dictionary of the JSON data for the file if found, else None.
+        data (dict | None): Dictionary of the JSON data for the file if found, else None. \n
+        If the top-level object of the JSON file is an array, this will return the first entry.
     """
-    base_filename = os.path.splitext(path)[0]
-    base_dir = os.path.split(path)[0]
     user_defined_files: str = shared.opts.extra_networks_desc_lookup or ''
     exts: list[str] = user_defined_files.split(",") + [".json"] + extra
     exts = [val.strip() for val in exts] # Remove whitespace
     exts = list(filter(lambda ex: ex != '' and ex.endswith(".json"), exts)) # Remove empty and invalid
     for ext_val in exts:
         if ext_val.startswith("."):
-            fn = base_filename + ext_val
+            fn = os.path.splitext(path)[0] + ext_val
         else:
-            fn = base_dir + ext_val # If str doesn't start with ".", assume it's a file name
+            fn = os.path.split(path)[0] + ext_val # If str doesn't start with ".", assume it's a file name
 
         if os.path.exists(fn):
             data = shared.readfile(fn, silent=True)
@@ -86,11 +86,8 @@ def get_json_info(path: str, extra: list[str]=[]) -> dict | None:
                 if len(data) > 0:
                     data = data[0]
                 else:
-                    continue
+                    continue # empty list
             if data:
-                for key in ['html', 'html0']:
-                    if key in data:
-                        data[key] = '' # Filter out large unused data
                 return data # Found data
 
 
@@ -552,7 +549,10 @@ class ExtraNetworksPage:
             return data
         if path is not None:
             t0 = time.time()
-            data = get_json_info(path, ["model_index.json"])
+            data = find_json_info(path, ["model_index.json"])
+            for key in ('html', 'html0'): # html, html0 = CivBrowser extension
+                if key in data:
+                    data[key] = empty_instance(data[key])
             t1 = time.time()
             self.info_time += t1-t0
         return data
@@ -896,30 +896,42 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 stat_size = item.size
             if hasattr(item, 'mtime') and item.mtime is not None:
                 stat_mtime = item.mtime
-            desc = item.description
-            fullinfo = get_json_info(item.filename)
-            if fullinfo is not None:
-                if 'modelVersions' in fullinfo: # sanitize massive objects
-                    fullinfo['modelVersions'] = []
-                info = fullinfo
-            if isinstance(info, list):
+
+            if prompt:
+                item.prompt = prompt
+            if negative:
+                item.negative = negative
+            if description:
+                item.description = description
+            if wildcards:
+                item.wildcards = wildcards
+
+            if not desc and hasattr(item, 'description') and item.description: # Empty string evaluates falsy and non-empty string evaluates truthy
+                desc = item.description # Initial/fallback value
+
+            try:
+                if shared.cmd_opts.no_metadata:
+                    fullinfo = {}
+                else:
+                    fullinfo = find_json_info(item.filename)
+                if fullinfo is not None:
+                    for key in ('modelVersions', 'html', 'html0'): # html, html0 = CivBrowser extension
+                        if key in fullinfo:
+                            fullinfo[key] = empty_instance(fullinfo[key]) # sanitize massive objects.
+                    info = fullinfo
+            except (OSError, ValueError, TypeError) as e:
+                shared.log.warning(f'Network: Failed to get full details. Using standard instead. Reason = {e}')
+
+            if isinstance(info, list): # Only a potential issue if getting fullinfo fails
                 item.filename = None
                 shared.log.warning('Network: show details not supported for compound item')
                 info = None
-            if prompt is not None and len(prompt) > 0:
-                item.prompt = prompt
-            if negative is not None and len(negative) > 0:
-                item.negative = negative
-            if shared.opts.extra_networks_desc_get_full_info and fullinfo is not None and getattr(fullinfo, "description", None) is not None:
-                item.description = fullinfo['description']
-                if fullinfo['versionDescription'] is not None:
-                    item.description += "<hr><hr>" + fullinfo['versionDescription']
-                item.description = to_markdown(item.description, markdown_options)
-                desc = item.description
-            elif description is not None and len(description) > 0:
-                item.description = description
-            if wildcards is not None and len(wildcards) > 0:
-                item.wildcards = wildcards
+            elif info is not None:
+                if dict_has_nonempty_str(info, 'description'):
+                    desc = info['description']
+                if dict_has_nonempty_str(info, 'versionDescription'):
+                    desc += '<hr><hr>' + info['versionDescription'] # Extended version-specific information
+            desc = to_markdown(desc, markdown_options) # Convert HTML to markdown
 
             meta = page.metadata.get(item.name, {}) or {}
             if type(meta) is str:
