@@ -1,6 +1,8 @@
 {
   "python.analysis.extraPaths": [".", "./modules", "./scripts", "./pipelines"],
-  "python.analysis.typeCheckingMode": "off",
+  "python.analysis.typeCheckingMode": "basic",
+  "files.eol": "\n",
   "editor.formatOnSave": false,
-  "python.REPL.enableREPLSmartSend": false
+  "python.REPL.enableREPLSmartSend": false,
+  "remote.autoForwardPorts": false
 }
