@@ -484,7 +484,7 @@ def branch(folder=None):
         if b == '':
             branches = git('branch', folder).split('\n')
         if len(branches) > 0:
-            b = [x for x in branches if x.startswith('*')][0]
+            b = next(x for x in branches if x.startswith('*'))
             if 'detached' in b and len(branches) > 1:
                 b = branches[1].strip()
                 log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
