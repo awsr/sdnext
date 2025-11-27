@@ -411,8 +411,8 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress=False, inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text: str):
-    token_count = [0]
+def update_token_counter(text: str | list[str]):
+    token_counts = [0]
     max_length = 75
     is_visible = False
     if shared.state.job_count > 0:
@@ -420,11 +420,10 @@ def update_token_counter(text: str):
         return gr.update(value=f"<span class='gr-box gr-text-input'>-- / {max_length}</span>", visible=True)
     from modules import extra_networks
     prompt, _ = extra_networks.parse_prompt(text)
-    if shared.opts.sd_textencder_linebreak and shared.opts.prompt_attention == "native":
+    if shared.opts.prompt_attention == "native":
         # re.split will return as a list even if there are no matches
-        prompt_list = re.split(r"\bBREAK\b|\n", prompt)
-    elif shared.opts.prompt_attention == "native":
-        prompt_list = re.split(r"\bBREAK\b", prompt)
+        p_split = re.compile(r'\bBREAK\b|\n' if shared.opts.sd_textencder_linebreak else r'\bBREAK\b')
+        prompt_list =   re.split(p_split, prompt) if isinstance(prompt, str) else prompt
     else:
         prompt_list = [prompt]
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
@@ -432,9 +431,16 @@ def update_token_counter(text: str):
         has_eos_token = shared.sd_model.tokenizer.eos_token_id is not None
         ids = shared.sd_model.tokenizer(prompt_list)
         ids = getattr(ids, 'input_ids', [])
-        token_count = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
-        is_visible = len(token_count) > 1 or (len(token_count) == 1 and token_count[0] > 0)
+        token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
+        if len(token_counts) > 1:
+            is_visible = True
+            count_fmt = f"{sum(token_counts)} {token_counts}"
+        if len(token_counts) == 1:
+            count_fmt = f"{token_counts[0]}"
+            if token_counts[0] > 0:
+                is_visible = True
+        is_visible = len(token_counts) > 1 or (len(token_counts) == 1 and token_counts[0] > 0)
         max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
-    return gr.update(value=f"<span class='gr-box gr-text-input' title='{sum(token_count)}'>{token_count} / {max_length}</span>", visible=is_visible)
+    return gr.update(value=f"<span class='gr-box gr-text-input'>{count_fmt} / {max_length}</span>", visible=is_visible)
