@@ -10,7 +10,9 @@ import logging
 import platform
 import subprocess
 import cProfile
-import importlib # pylint: disable=deprecated-module
+import importlib
+import importlib.util
+import importlib.metadata
 from core.info import version, systeminfo
 
 
@@ -301,7 +303,7 @@ def print_profile(profiler: cProfile.Profile, msg: str):
 
 def package_version(package):
     try:
-        return pkg_resources.get_distribution(package).version
+        return importlib.metadata.version(package)
     except Exception:
         return None
 
