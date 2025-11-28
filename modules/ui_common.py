@@ -414,6 +414,7 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
 def update_token_counter(text: str | list[str]):
     token_counts = [0]
     max_length = 75
+    count_fmt = '--'
     is_visible = False
     if shared.state.job_count > 0:
         shared.log.info('Tokenizer busy')
