@@ -145,7 +145,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             for name, module in shared.sd_model.text_encoder.named_modules():
                 progress.update(task, advance=1)
                 weights_backup = getattr(module, "network_weights_backup", None)
-                if weights_backup is None or getattr(module, "network_current_names", None) is None:
+                if weights_backup is None or getattr(module, "network_current_names", None) is None: # TODO: Error. weights_backup can also be bool/True (see lora_apply:py:37)
                     continue
                 prefix = "lora_te1_" if hasattr(shared.sd_model, 'text_encoder_2') else "lora_te_"
                 module.svdhandler = SVDHandler(maxrank, rank_ratio)
