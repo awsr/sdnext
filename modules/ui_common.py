@@ -440,6 +440,10 @@ def update_token_counter(text: str | list[str]):
             count_fmt = f"{token_counts[0]}"
             if token_counts[0] > 0:
                 is_visible = True
+        else:
+            count_fmt = "??"
+            is_visible = True
+            shared.log.debug(f"Something went wrong with the token counter process: {text=} {prompt=} {prompt_list=} {ids=} {token_counts=}")
         is_visible = len(token_counts) > 1 or (len(token_counts) == 1 and token_counts[0] > 0)
         max_length = shared.sd_model.tokenizer.model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
