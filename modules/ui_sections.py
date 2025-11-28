@@ -4,7 +4,7 @@ from modules.ui_components import ToolButton
 from modules.interrogate import interrogate
 
 
-def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
+def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
     def apply_styles(prompt, prompt_neg, styles):
         prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
@@ -91,7 +91,7 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     return width, height
 
 
-def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None, what: str = ''):
+def create_interrogate_button(tab: str, inputs: list | None = None, outputs: str | None = None, what: str = ''):
     button_interrogate = gr.Button(ui_symbols.interrogate, elem_id=f"{tab}_interrogate_{what}", elem_classes=['interrogate'])
     if inputs is not None and outputs is not None:
         button_interrogate.click(fn=interrogate.interrogate, inputs=inputs, outputs=[outputs])
