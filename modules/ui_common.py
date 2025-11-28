@@ -424,7 +424,7 @@ def update_token_counter(text: str | list[str]):
     if shared.opts.prompt_attention == "native":
         # re.split will return as a list even if there are no matches
         p_split = re.compile(r'\bBREAK\b|\n' if shared.opts.sd_textencder_linebreak else r'\bBREAK\b')
-        prompt_list =   re.split(p_split, prompt) if isinstance(prompt, str) else prompt
+        prompt_list = re.split(p_split, prompt) if isinstance(prompt, str) else prompt
     else:
         prompt_list = [prompt]
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
@@ -436,7 +436,7 @@ def update_token_counter(text: str | list[str]):
         if len(token_counts) > 1:
             is_visible = True
             count_fmt = f"{sum(token_counts)} {token_counts}"
-        if len(token_counts) == 1:
+        elif len(token_counts) == 1:
             count_fmt = f"{token_counts[0]}"
             if token_counts[0] > 0:
                 is_visible = True
