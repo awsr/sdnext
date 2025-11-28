@@ -17,6 +17,24 @@
         "--api-log",
         "--log", "vscode.log",
         "${command:pickArgs}"]
+    },
+    {
+      "name": "Rapid ROCm-Medvram SD.Next VSCode Debugger",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "launch.py",
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal",
+      "args": [
+        "--uv",
+        "--quick",
+        "--debug",
+        "--docs",
+        "--api-log",
+        "--log", "vscode.log",
+        "--use-rocm",
+        "--medvram",
+        "--skip-all"]
     }
   ]
 }
