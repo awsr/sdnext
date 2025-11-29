@@ -6,9 +6,8 @@ let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
 let lastSortName = 'None';
-let idbIsCleaning = false;
-let activeGalleryFolder = '';
 const galleryHashes = new Set();
+let maintenanceController = new AbortController();
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -22,18 +21,20 @@ const el = {
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
 async function awaitForIDB(num = 0) {
-  while (outstanding > num || idbIsCleaning) await new Promise((resolve) => { setTimeout(resolve, 50); });
+  while (outstanding > num) await new Promise((resolve) => { setTimeout(resolve, 50); });
 }
 
-async function awaitForGallery(folderName, num = 0) {
+/**
+ * Wait for gallery to finish populating
+ * @param {number} expectedSize - Expected gallery size
+ * @param {AbortSignal} signal - AbortController signal
+ */
+async function awaitForGallery(expectedSize, signal) {
   let timeout = 0;
   const timeoutThreshold = 60; // 30 seconds (60*0.5)
-  while (galleryHashes.size < num && activeGalleryFolder === folderName && !idbIsCleaning && timeout++ < timeoutThreshold) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  while (galleryHashes.size < expectedSize && !signal.aborted && timeout++ < timeoutThreshold) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
   if (timeout >= timeoutThreshold) {
     throw new Error('Timed out waiting for gallery to populate');
-  }
-  if (idbIsCleaning) {
-    throw new Error('Another thread has already started cleaning the database');
   }
 }
 
@@ -611,52 +612,61 @@ function showCleaningMsg() {
  * Handles calling the cleanup function for the thumbnail cache
  * @param {string} folder - Folder to clean
  * @param {number} imgCount - Expected number of images in gallery
+ * @param {AbortController} controller - AbortController that's handling this task
  */
-async function thumbCacheCleanup(folder, imgCount) {
-  if (idbIsCleaning) return;
+async function thumbCacheCleanup(folder, imgCount, controller) {
   try {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
     }
     await awaitForIDB();
-    await awaitForGallery(folder, imgCount);
+    await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
     log('Thumbnail DB cleanup:', err.message);
     return;
   }
-  if (activeGalleryFolder !== folder || idbIsCleaning) return; // First check for other thread activity
 
-  const t0 = performance.now();
-  const staticGalleryHashes = new Set(galleryHashes);
-  const cachedHashesCount = await idbCount(folder)
-    .catch(() => Infinity); // Forces next check to fail if something went wrong
-  if (cachedHashesCount < staticGalleryHashes.size + 500) {
-    // Don't run when there aren't many excess entries
-    return;
-  }
-  if (activeGalleryFolder !== folder || idbIsCleaning) return; // Second check for other thread activity
+  await navigator.locks.request('maintenance', { signal: controller.signal }, async (lock) => {
+    const t0 = performance.now();
+    const staticGalleryHashes = new Set(galleryHashes);
+    const cachedHashesCount = await idbCount(folder)
+      .catch(() => Infinity); // Forces next check to fail if something went wrong
+    if (cachedHashesCount < staticGalleryHashes.size + 500) {
+      // Don't run when there aren't many excess entries
+      return;
+    }
 
-  idbIsCleaning = true;
-  const [cb_updateMsg, cb_clearMsg] = showCleaningMsg();
-  idbFolderCleanup(staticGalleryHashes, folder, cb_updateMsg)
-    .then((delcount) => {
-      const t1 = performance.now();
-      log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
-    })
+    if (controller.signal.aborted) {
+      // eslint-disable-next-line no-throw-literal
+      throw controller.signal.reason;
+    }
+    const [cb_updateMsg, cb_clearMsg] = showCleaningMsg();
+    await idbFolderCleanup(staticGalleryHashes, folder, cb_updateMsg, controller.signal)
+      .then((delcount) => {
+        const t1 = performance.now();
+        log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+      })
+      .catch((reason) => {
+        if (reason instanceof Error) {
+          error('Thumbnail DB cleanup: Cleanup failed.', reason.message);
+        } else {
+          log('Thumbnail DB cleanup:', reason);
+        }
+      })
+      .finally(() => {
+        cb_clearMsg();
+      });
+  })
     .catch((reason) => {
-      if (reason instanceof Error) {
-        error('Thumbnail DB cleanup: Cleanup failed.', reason.message);
+      if (reason instanceof DOMException && reason.name === 'AbortError') {
+        debug('Abort Controller:', reason);
       } else {
-        log('Thumbnail DB cleanup:', reason);
+        error('Web Lock:', reason);
       }
-    })
-    .finally(() => {
-      cb_clearMsg();
-      idbIsCleaning = false;
     });
 }
 
-async function fetchFilesHT(evt) {
+async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
   updateStatusWithSort(`Folder: ${evt.target.name} | in-progress`);
@@ -685,12 +695,16 @@ async function fetchFilesHT(evt) {
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
   updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
   addSeparators();
-  thumbCacheCleanup(evt.target.name, numFiles);
+  thumbCacheCleanup(evt.target.name, numFiles, controller);
 }
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
-  if (idbIsCleaning || !url) return;
-  galleryHashes.clear(); // Only called here because fetchFilesHT isn't called directly
+  if (!url) return;
+  const controller = new AbortController(); // Only called here because fetchFilesHT isn't called directly
+  maintenanceController.abort('Updating gallery'); // Abort previous controller
+  maintenanceController = controller; // Point to new controller for next time.
+
+  galleryHashes.clear();
   el.files.innerHTML = '';
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
   let wsConnected = false;
@@ -701,10 +715,9 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     log('gallery: ws connect error', err);
     return;
   }
-  activeGalleryFolder = evt.target.name;
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   if (!wsConnected) {
-    await fetchFilesHT(evt); // fallback to http
+    await fetchFilesHT(evt, controller); // fallback to http
     return;
   }
   updateStatusWithSort(`Folder: ${evt.target.name}`);
@@ -739,7 +752,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(`Folder: ${evt.target.name} | ${numFiles.toLocaleString()} images | ${Math.floor(t1 - t0).toLocaleString()}ms`);
     addSeparators();
-    thumbCacheCleanup(evt.target.name, numFiles);
+    thumbCacheCleanup(evt.target.name, numFiles, controller);
   };
   ws.onerror = (event) => {
     log('gallery ws error', event);

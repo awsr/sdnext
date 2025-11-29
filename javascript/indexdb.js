@@ -135,11 +135,12 @@ async function idbCount(folder = null) {
 /**
  * Cleanup function for IndexedDB thumbnail cache.
  * @global
- * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder.
- * @param {string} folder - Folder name/path.
- * @param {UpdateMsgCallback} msgCallback - Callback for updating the overlay message progress.
+ * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder
+ * @param {string} folder - Folder name/path
+ * @param {UpdateMsgCallback} msgCallback - Callback for updating the overlay message progress
+ * @param {AbortSignal} signal - Signal from the AbortController for thumbCacheCleanup()
  */
-async function idbFolderCleanup(keepSet, folder, msgCallback) {
+async function idbFolderCleanup(keepSet, folder, msgCallback, signal) {
   if (!db) return null;
   if (!(keepSet instanceof Set)) {
     throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
@@ -147,12 +148,22 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
   if (typeof folder !== 'string') {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
+
   const removals = (new Set(await idbGetAllKeys('folder', folder))).difference(keepSet);
   const totalRemovals = removals.size;
   let counter = 0;
+  if (signal.aborted) {
+    // eslint-disable-next-line no-throw-literal
+    throw `Aborting. ${signal.reason}`;
+  }
   return new Promise((resolve, reject) => {
+    const transaction = db.transaction('thumbs', 'readwrite');
+    function abortTransaction() {
+      signal.removeEventListener('abort', abortTransaction);
+      transaction.abort();
+    }
+    signal.addEventListener('abort', abortTransaction);
     try {
-      const transaction = db.transaction('thumbs', 'readwrite');
       const folderIndex = transaction.objectStore('thumbs').index('folder');
       const request = folderIndex.openCursor(folder);
 
@@ -164,6 +175,7 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
             cursor.delete();
           }
           if (counter === totalRemovals) {
+            signal.removeEventListener('abort', abortTransaction);
             resolve(counter); // Got lucky with element order and can stop early
           } else {
             if (counter % 100 === 0 && counter !== 0) {
@@ -172,12 +184,20 @@ async function idbFolderCleanup(keepSet, folder, msgCallback) {
             cursor.continue();
           }
         } else {
+          signal.removeEventListener('abort', abortTransaction);
           resolve(counter);
         }
       };
-      request.onerror = (e) => reject(e);
-      transaction.onabort = (e) => reject(e);
+      request.onerror = (e) => {
+        signal.removeEventListener('abort', abortTransaction);
+        reject(e);
+      };
+      transaction.onabort = (e) => {
+        signal.removeEventListener('abort', abortTransaction);
+        reject(e);
+      };
     } catch (err) {
+      signal.removeEventListener('abort', abortTransaction); // Is it overkill? Yes. But I'm tired of chasing down edge cases.
       reject(err);
     }
   });
