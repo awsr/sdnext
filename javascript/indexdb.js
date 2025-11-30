@@ -137,10 +137,9 @@ async function idbCount(folder = null) {
  * @global
  * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder
  * @param {string} folder - Folder name/path
- * @param {UpdateMsgCallback} msgCallback - Callback for updating the overlay message progress
  * @param {AbortSignal} signal - Signal from the AbortController for thumbCacheCleanup()
  */
-async function idbFolderCleanup(keepSet, folder, msgCallback, signal) {
+async function idbFolderCleanup(keepSet, folder, signal) {
   if (!db) return null;
   if (!(keepSet instanceof Set)) {
     throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
@@ -149,12 +148,11 @@ async function idbFolderCleanup(keepSet, folder, msgCallback, signal) {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
 
-  const removals = (new Set(await idbGetAllKeys('folder', folder))).difference(keepSet);
+  let removals = new Set(await idbGetAllKeys('folder', folder));
+  removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
-  let counter = 0;
   if (signal.aborted) {
-    // eslint-disable-next-line no-throw-literal
-    throw `Aborting. ${signal.reason}`;
+    throw `Aborting. ${signal.reason}`; // eslint-disable-line no-throw-literal
   }
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('thumbs', 'readwrite');
@@ -163,43 +161,27 @@ async function idbFolderCleanup(keepSet, folder, msgCallback, signal) {
       transaction.abort();
     }
     signal.addEventListener('abort', abortTransaction);
-    try {
-      const folderIndex = transaction.objectStore('thumbs').index('folder');
-      const request = folderIndex.openCursor(folder);
 
-      request.onsuccess = (evt) => {
-        const cursor = evt.target.result;
-        if (cursor) {
-          if (removals.has(cursor.primaryKey)) {
-            counter++;
-            cursor.delete();
-          }
-          if (counter === totalRemovals) {
-            signal.removeEventListener('abort', abortTransaction);
-            resolve(counter); // Got lucky with element order and can stop early
-          } else {
-            if (counter % 100 === 0 && counter !== 0) {
-              msgCallback(Math.floor((counter / totalRemovals) * 100));
-            }
-            cursor.continue();
-          }
-        } else {
-          signal.removeEventListener('abort', abortTransaction);
-          resolve(counter);
-        }
-      };
-      request.onerror = (e) => {
-        signal.removeEventListener('abort', abortTransaction);
-        reject(e);
-      };
-      transaction.onabort = (e) => {
-        signal.removeEventListener('abort', abortTransaction);
-        reject(e);
-      };
+    try {
+      const store = transaction.objectStore('thumbs');
+      removals.forEach((entry) => { store.delete(entry); });
     } catch (err) {
-      signal.removeEventListener('abort', abortTransaction); // Is it overkill? Yes. But I'm tired of chasing down edge cases.
-      reject(err);
+      error(err);
+      abortTransaction();
     }
+
+    transaction.onabort = () => {
+      signal.removeEventListener('abort', abortTransaction);
+      reject(`Aborting. ${signal.reason}`); // eslint-disable-line prefer-promise-reject-errors
+    };
+    transaction.onerror = () => {
+      signal.removeEventListener('abort', abortTransaction);
+      reject(new Error('Database transaction error'));
+    };
+    transaction.oncomplete = async () => {
+      signal.removeEventListener('abort', abortTransaction);
+      resolve(totalRemovals);
+    };
   });
 }
 
