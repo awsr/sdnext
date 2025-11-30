@@ -305,7 +305,6 @@ class GalleryFile extends HTMLElement {
     }
 
     this.hash = await getHash(`${this.folder}/${this.name}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    galleryHashes.add(this.hash);
     const style = document.createElement('style');
     const width = opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset';
     style.textContent = `
@@ -373,6 +372,7 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
+    galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
     if (!ok) {
       return;
     }
@@ -659,9 +659,8 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
     }
-    debug('Thumbnail DB cleanup: Waiting for database activity to clear');
+    debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
     await awaitForGallery(imgCount, controller.signal);
-    await awaitForIDB(0, controller.signal);
   } catch (err) {
     if (err instanceof Error) {
       error('Thumbnail DB cleanup:', err.message);
