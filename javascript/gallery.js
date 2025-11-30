@@ -1,4 +1,5 @@
 /* eslint-disable max-classes-per-file */
+/* eslint lines-between-class-members: ["error", "always", { "exceptAfterSingleLine": true }] */
 let ws;
 let url;
 let currentImage;
