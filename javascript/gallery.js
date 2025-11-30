@@ -645,7 +645,7 @@ function showCleaningMsg() {
 
   cleaningOverlay.append(msg, anim);
   parent.append(cleaningOverlay);
-  return cleaningOverlay.remove;
+  return () => { cleaningOverlay.remove(); };
 }
 
 /**
