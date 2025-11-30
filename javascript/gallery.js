@@ -660,8 +660,8 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
       throw new Error('Function called with invalid arguments');
     }
     debug('Thumbnail DB cleanup: Waiting for database activity to clear');
-    await awaitForIDB(0, controller.signal);
     await awaitForGallery(imgCount, controller.signal);
+    await awaitForIDB(0, controller.signal);
   } catch (err) {
     if (err instanceof Error) {
       error('Thumbnail DB cleanup:', err.message);
