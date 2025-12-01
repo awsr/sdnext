@@ -33,11 +33,11 @@ async function awaitForIDB(num = 0, signal = null) {
  * @param {AbortSignal} signal - AbortController signal
  */
 async function awaitForGallery(expectedSize, signal) {
-  const timeout = AbortSignal.timeout(30000);
+  const timeout = AbortSignal.timeout(60000);
   const combinedSignals = AbortSignal.any([timeout, signal]);
   while (galleryHashes.size < expectedSize && !combinedSignals.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
   if (timeout.aborted) {
-    throw new Error('Timed out waiting for gallery to populate');
+    throw 'Timed out waiting for gallery to populate'; // eslint-disable-line no-throw-literal
   }
 }
 
@@ -682,7 +682,7 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     callback: async () => {
       debug(`Thumbnail DB cleanup: Checking if "${folder}" neads cleaning`);
       const t0 = performance.now();
-      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since it's guarded by AbortController/AbortSignal
+      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
         .catch(() => Infinity); // Forces next check to fail if something went wrong
       if (cachedHashesCount < staticGalleryHashes.size + 500) {
