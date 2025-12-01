@@ -90,8 +90,6 @@ class SimpleFunctionQueue {
   }
 }
 
-const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
-
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
@@ -654,6 +652,8 @@ function showCleaningMsg() {
   parent.append(cleaningOverlay);
   return () => { cleaningOverlay.remove(); };
 }
+
+const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
 
 /**
  * Handles calling the cleanup function for the thumbnail cache
