@@ -373,7 +373,7 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (!this.#gallerySignal.aborted) {
+    if (!this.#gallerySignal?.aborted) {
       // Guard against accessing external context from a stale initialization
       galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
       this.#gallerySignal = null; // Clean up reference to AbortSignal
