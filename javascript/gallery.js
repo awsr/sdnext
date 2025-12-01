@@ -65,7 +65,9 @@ class SimpleFunctionQueue {
     if (!(config.signal instanceof AbortSignal) || typeof config.callback !== 'function') {
       throw new Error('Invalid configuration. Object must contain an AbortSignal and a function');
     }
-    config.signal.throwIfAborted();
+    if (config.signal.aborted) {
+      debug(`${this.#id} Queue: Skipping addition to queue due to "${config.signal.reason}"`);
+    }
     this.#queue.push(config);
     if (!this.busy) {
       this.#runNext();
@@ -82,7 +84,7 @@ class SimpleFunctionQueue {
       this.#running = true;
       await callback();
     } catch (err) {
-      error(`${this.#id} Queue`, err);
+      error(`${this.#id} Queue:`, err);
     } finally {
       this.#running = false;
       this.#runNext();
