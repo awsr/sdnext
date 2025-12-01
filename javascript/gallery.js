@@ -275,10 +275,13 @@ async function delayFetchThumb(fn) {
 }
 
 class GalleryFile extends HTMLElement {
-  constructor(folder, file) {
+  #gallerySignal;
+
+  constructor(folder, file, signal = undefined) {
     super();
     this.folder = folder;
     this.name = file;
+    this.#gallerySignal = signal;
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
@@ -372,7 +375,11 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
+    if (!this.#gallerySignal.aborted) {
+      // Guard against accessing external context from a stale initialization
+      galleryHashes.add(this.hash); // Add to hashes Set *after* any database operations
+      this.#gallerySignal = null; // Clean up reference to AbortSignal
+    }
     if (!ok) {
       return;
     }
@@ -726,7 +733,7 @@ async function fetchFilesHT(evt, controller) {
     const ext = fileName.split('.').pop().toLowerCase();
     if (SUPPORTED_EXTENSIONS.includes(ext)) {
       numFiles++;
-      const f = new GalleryFile(data[0], fileName);
+      const f = new GalleryFile(data[0], fileName, controller.signal);
       fragment.appendChild(f);
     }
   }
@@ -777,7 +784,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
       const fileName = data[1];
       const ext = fileName.split('.').pop().toLowerCase();
       if (SUPPORTED_EXTENSIONS.includes(ext)) {
-        const file = new GalleryFile(data[0], fileName);
+        const file = new GalleryFile(data[0], fileName, controller.signal);
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % 100 === 0) {
