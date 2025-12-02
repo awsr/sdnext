@@ -930,7 +930,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                 if dict_has_nonempty_str(info, 'description'):
                     desc = info['description']
                 if dict_has_nonempty_str(info, 'versionDescription'):
-                    desc += '<hr><hr>' + info['versionDescription'] # Extended version-specific information
+                    desc += '<hr/><hr/><h2><strong>Version Description:</strong></h2><hr/>' + info['versionDescription'] # Extended version-specific information
             desc = to_markdown(desc, markdown_options) # Convert HTML to markdown
 
             meta = page.metadata.get(item.name, {}) or {}
