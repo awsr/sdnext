@@ -12,7 +12,7 @@ class VersionData(object):
     Program version information
     """
 
-    def __init__(self, name: str, fork=""):
+    def __init__(self, app: str, fork=""):
         t_start = time.time()
         try:
             subprocess.run("git config log.showsignature false", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
@@ -21,7 +21,7 @@ class VersionData(object):
 
         githash, updated = self._get_hash_and_updated()
 
-        self.app: Final = name
+        self.app: Final = app
         self.updated: Final = updated
         self.hash: Final = githash
         self.origin: Final = self._get_origin()
@@ -73,7 +73,7 @@ class VersionData(object):
             os.chdir(cwd)
 
     def refresh(self):
-        self.__init__(self.name, self.fork)
+        self.__init__(self.app, self.fork)
 
     def to_dict(self):
         return self.__dict__
