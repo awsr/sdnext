@@ -4,6 +4,7 @@ import random
 import re
 import time
 import json
+import glob
 import html
 import base64
 import urllib.parse
@@ -624,31 +625,30 @@ def get_pages(title=None):
 
 class ExtraNetworksUi:
     def __init__(self):
-        self.tabname: str = None
-        self.pages: list[str] = None
-        self.visible: gr.State = None
-        self.state: gr.Textbox = None
-        self.details: gr.Group = None
-        self.details_tabs: gr.Group = None
-        self.details_text: gr.Group = None
-        self.tabs: gr.Tabs = None
-        self.gallery: gr.Gallery = None
-        self.description: gr.Textbox = None
-        self.search: gr.Textbox = None
-        self.button_details: gr.Button = None
-        self.button_refresh: gr.Button = None
-        self.button_scan: gr.Button = None
-        self.button_view: gr.Button = None
-        self.button_quicksave: gr.Button = None
-        self.button_save: gr.Button = None
-        self.button_sort: gr.Button = None
-        self.button_apply: gr.Button = None
-        self.button_close: gr.Button = None
-        self.button_model: gr.Checkbox = None
+        self.tabname: str | None = None
+        self.pages: list[str] | None = None
+        self.visible: gr.State | None = None
+        self.state: gr.Textbox | None = None
+        self.details: gr.Group | None = None
+        self.details_tabs: gr.Group | None = None
+        self.details_text: gr.Group | None = None
+        self.tabs: gr.Tabs | None = None
+        self.gallery: gr.Gallery | None = None
+        self.description: gr.Textbox | None = None
+        self.search: gr.Textbox | None = None
+        self.button_details: gr.Button | None = None
+        self.button_refresh: gr.Button | None = None
+        self.button_scan: gr.Button | None = None
+        self.button_view: gr.Button | None = None
+        self.button_quicksave: gr.Button | None = None
+        self.button_save: gr.Button | None = None
+        self.button_sort: gr.Button | None = None
+        self.button_apply: gr.Button | None = None
+        self.button_close: gr.Button | None = None
+        self.button_model: gr.Checkbox | None = None
         self.details_components: list = []
-        self.last_item: dict = None
-        self.last_page: ExtraNetworksPage = None
-        self.state: gr.State = None
+        self.last_item: SimpleNamespace | None = None
+        self.last_page: ExtraNetworksPage | None = None
 
 
 def create_ui(container, button_parent, tabname, skip_indexing = False):
@@ -831,17 +831,36 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
     def fn_delete_network(desc):
         if ui.last_item is None:
             return desc
-        basename = os.path.splitext(ui.last_item.filename)[0]
-        extensions = ['.safetensors', '.ckpt', '.txt', '.json', '.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl']
+        filepathstub = os.path.splitext(ui.last_item.filename)[0]
+        dirpath, basename = os.path.split(ui.last_item.filename)
+        if TYPE_CHECKING:
+            assert isinstance(filepathstub, str) and isinstance(dirpath, str) and isinstance(basename, str)
         candidates = []
-        for ext in extensions:
-            fn = basename + ext
-            if os.path.exists(fn) and os.path.isfile(fn):
-                candidates.append(fn)
+        media_extensions = ['.thumb.jpg', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.jp2', '.jxl', '.webm']
+        extensions = media_extensions + ['.safetensors', '.ckpt', '.txt', '.json']
+        for entry in (shared.opts.extra_networks_desc_lookup or '').split(','):
+            entry = entry.strip()
+            if entry and entry.startswith('.') and entry.endswith('json'): # Only ones starting with '.' are per-network
+                extensions.append(entry)
+        potential_files = glob.glob(f'{filepathstub}*') # All files in the same directory starting with the same name
+        for file in potential_files:
+            fn, ext = os.path.splitext(file)
+            if ext not in extensions:
+                continue # Wrong file type. Skip.
+            if ext in media_extensions:
+                if not re.fullmatch(filepathstub + r'(?:_\d+)?', fn): # for example network.png or network_4.png
+                    continue # Not a main or sub-image for this one. Skip.
+            elif fn != filepathstub:
+                continue # Can't be certain it's not for a different one  something else that just happens to start the same. Skip.
+            if os.path.isfile(file):
+                candidates.append(file)
         msg = f'Network delete: item="{ui.last_item.name}" files={candidates}'
         shared.log.debug(msg)
         for fn in candidates:
-            os.remove(fn)
+            try:
+                os.remove(fn)
+            except OSError as err:
+                shared.log.error('Network delete: Error when trying to delete file.', err)
         return msg
 
     def fn_save_info(info):
