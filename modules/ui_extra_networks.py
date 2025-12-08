@@ -59,7 +59,7 @@ markdown_options = ConversionOptions(
 )
 
 
-def find_json_info(path: str, extra: list[str]=[]) -> dict | None:
+def find_json_info(path: str, extra: list[str]=[]) -> dict:
     """
     Find and get metadata from JSON for the file specified in path.
 
@@ -68,7 +68,7 @@ def find_json_info(path: str, extra: list[str]=[]) -> dict | None:
         extra (list[str], optional): Additional files to check. Defaults to [].
 
     Returns:
-        data (dict | None): Dictionary of the JSON data for the file if found, else None. \n
+        data (dict): Dictionary of the JSON data for the file if found, else an empty dict. \n
         If the top-level object of the JSON file is an array, this will return the first entry.
     """
     user_defined_files: str = shared.opts.extra_networks_desc_lookup or ''
@@ -90,6 +90,7 @@ def find_json_info(path: str, extra: list[str]=[]) -> dict | None:
                     continue # empty list
             if data:
                 return data # Found data
+    return {}
 
 
 def init_api():
@@ -933,7 +934,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
                     fullinfo = {}
                 else:
                     fullinfo = find_json_info(item.filename)
-                if fullinfo is not None:
+                if fullinfo:
                     for key in ('modelVersions', 'html', 'html0'): # html, html0 = CivBrowser extension
                         if key in fullinfo:
                             fullinfo[key] = empty_instance(fullinfo[key]) # sanitize massive objects.
