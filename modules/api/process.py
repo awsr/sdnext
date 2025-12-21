@@ -24,13 +24,13 @@ class ResPreprocess(BaseModel):
 class ReqMask(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")
     type: str = Field(title="Mask type", description="Type of masking image to return")
-    mask: Optional[str] = Field(title="Mask", description="If optional maks image is not provided auto-masking will be performed")
-    model: Optional[str] = Field(title="Model", description="The model to use for preprocessing")
+    mask: Optional[str] = Field(None, title="Mask", description="If optional maks image is not provided auto-masking will be performed")
+    model: Optional[str] = Field(None, title="Model", description="The model to use for preprocessing")
     params: Optional[dict] = Field(default={}, title="Settings", description="Preprocessor settings")
 
 class ReqFace(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")
-    model: Optional[str] = Field(title="Model", description="The model to use for detection")
+    model: Optional[str] = Field(None, title="Model", description="The model to use for detection")
 
 class ResFace(BaseModel):
     classes: List[int] = Field(title="Class", description="The class of detected item")

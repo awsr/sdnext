@@ -16,8 +16,8 @@ API_NOT_ALLOWED = [
 class ModelDef(BaseModel):
     field: str
     field_alias: str
-    field_type: Any
-    field_value: Any
+    field_type: Any = None
+    field_value: Any = None
     field_exclude: bool = False
 
 
@@ -95,49 +95,49 @@ class ItemVae(BaseModel):
 
 class ItemUpscaler(BaseModel):
     name: str = Field(title="Name")
-    model_name: Optional[str] = Field(title="Model Name")
-    model_path: Optional[str] = Field(title="Path")
-    model_url: Optional[str] = Field(title="URL")
-    scale: Optional[float] = Field(title="Scale")
+    model_name: Optional[str] = Field(None, title="Model Name")
+    model_path: Optional[str] = Field(None, title="Path")
+    model_url: Optional[str] = Field(None, title="URL")
+    scale: Optional[float] = Field(None, title="Scale")
 
 class ItemModel(BaseModel):
     title: str = Field(title="Title")
     model_name: str = Field(title="Model Name")
     filename: str = Field(title="Filename")
     type: str = Field(title="Model type")
-    sha256: Optional[str] = Field(title="SHA256 hash")
-    hash: Optional[str] = Field(title="Short hash")
-    config: Optional[str] = Field(title="Config file")
+    sha256: Optional[str] = Field(None, title="SHA256 hash")
+    hash: Optional[str] = Field(None, title="Short hash")
+    config: Optional[str] = Field(None, title="Config file")
 
 class ItemHypernetwork(BaseModel):
     name: str = Field(title="Name")
-    path: Optional[str] = Field(title="Path")
+    path: Optional[str] = Field(None, title="Path")
 
 class ItemDetailer(BaseModel):
     name: str = Field(title="Name")
-    path: Optional[str] = Field(title="Path")
+    path: Optional[str] = Field(None, title="Path")
 
 class ItemGAN(BaseModel):
     name: str = Field(title="Name")
-    path: Optional[str] = Field(title="Path")
-    scale: Optional[int] = Field(title="Scale")
+    path: Optional[str] = Field(None, title="Path")
+    scale: Optional[int] = Field(None, title="Scale")
 
 class ItemStyle(BaseModel):
     name: str = Field(title="Name")
-    prompt: Optional[str] = Field(title="Prompt")
-    negative_prompt: Optional[str] = Field(title="Negative Prompt")
-    extra: Optional[str] = Field(title="Extra")
-    filename: Optional[str] = Field(title="Filename")
-    preview: Optional[str] = Field(title="Preview")
+    prompt: Optional[str] = Field(None, title="Prompt")
+    negative_prompt: Optional[str] = Field(None, title="Negative Prompt")
+    extra: Optional[str] = Field(None, title="Extra")
+    filename: Optional[str] = Field(None, title="Filename")
+    preview: Optional[str] = Field(None, title="Preview")
 
 class ItemExtraNetwork(BaseModel):
     name: str = Field(title="Name")
     type: str = Field(title="Type")
-    title: Optional[str] = Field(title="Title")
-    fullname: Optional[str] = Field(title="Fullname")
-    filename: Optional[str] = Field(title="Filename")
-    hash: Optional[str] = Field(title="Hash")
-    preview: Optional[str] = Field(title="Preview image URL")
+    title: Optional[str] = Field(None, title="Title")
+    fullname: Optional[str] = Field(None, title="Fullname")
+    filename: Optional[str] = Field(None, title="Filename")
+    hash: Optional[str] = Field(None, title="Hash")
+    preview: Optional[str] = Field(None, title="Preview image URL")
 
 class ItemArtist(BaseModel):
     name: str = Field(title="Name")
@@ -145,9 +145,9 @@ class ItemArtist(BaseModel):
     category: str = Field(title="Category")
 
 class ItemEmbedding(BaseModel):
-    step: Optional[int] = Field(title="Step", description="The number of steps that were used to train this embedding, if available")
-    sd_checkpoint: Optional[str] = Field(title="SD Checkpoint", description="The hash of the checkpoint this embedding was trained on, if available")
-    sd_checkpoint_name: Optional[str] = Field(title="SD Checkpoint Name", description="The name of the checkpoint this embedding was trained on, if available. Note that this is the name that was used by the trainer; for a stable identifier, use `sd_checkpoint` instead")
+    step: Optional[int] = Field(None, title="Step", description="The number of steps that were used to train this embedding, if available")
+    sd_checkpoint: Optional[str] = Field(None, title="SD Checkpoint", description="The hash of the checkpoint this embedding was trained on, if available")
+    sd_checkpoint_name: Optional[str] = Field(None, title="SD Checkpoint Name", description="The name of the checkpoint this embedding was trained on, if available. Note that this is the name that was used by the trainer; for a stable identifier, use `sd_checkpoint` instead")
     shape: int = Field(title="Shape", description="The length of each individual vector in the embedding")
     vectors: int = Field(title="Vectors", description="The number of vectors in the embedding")
 
@@ -329,7 +329,7 @@ class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
 
 class ResProgress(BaseModel):
-    id: Union[int, str, None] = Field(title="TaskID", description="Task ID")
+    id: Union[int, str, None] = Field(None, title="TaskID", description="Task ID")
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
@@ -337,19 +337,19 @@ class ResProgress(BaseModel):
     textinfo: Optional[str] = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
-    id: Union[int, str, None] = Field(title="ID", description="Task ID")
+    id: Union[int, str, None] = Field(None, title="ID", description="Task ID")
     job: str = Field(title="Job", description="Job name")
     op: str = Field(title="Operation", description="Job state")
-    timestamp: Union[float, None] = Field(title="Timestamp", description="Job timestamp")
-    duration: Union[float, None] = Field(title="Duration", description="Job duration")
+    timestamp: Union[float, None] = Field(None, title="Timestamp", description="Job timestamp")
+    duration: Union[float, None] = Field(None, title="Duration", description="Job duration")
     outputs: List[str] = Field(title="Outputs", description="List of filenames")
 
 class ResStatus(BaseModel):
     status: str = Field(title="Status", description="Current status")
     task: str = Field(title="Task", description="Current job")
-    timestamp: Optional[str] = Field(title="Timestamp", description="Timestamp of the current job")
+    timestamp: Optional[str] = Field(None, title="Timestamp", description="Timestamp of the current job")
     current: str = Field(title="Task", description="Current job")
-    id: Union[int, str, None] = Field(title="ID", description="ID of the current task")
+    id: Union[int, str, None] = Field(None, title="ID", description="ID of the current task")
     job: int = Field(title="Job", description="Current job")
     jobs: int = Field(title="Jobs", description="Total jobs")
     total: int = Field(title="Total Jobs", description="Total jobs")
