@@ -438,7 +438,7 @@ class ResScripts(BaseModel):
 class ResGPU(BaseModel): # definition of http response
     name: str = Field(title="GPU Name")
     data: dict = Field(title="Name/Value data")
-    chart: list[float, float] = Field(title="Exactly two items to place on chart")
+    chart: tuple[float, float] = Field(title="Exactly two items to place on chart")
 
 # helper function
 
@@ -450,7 +450,7 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: Typ
 
     args, _, varkw, defaults, kwonlyargs, kwonlydefaults, annotations = inspect.getfullargspec(func)
     config = Config if varkw else None # Allow extra params if there is a **kwargs parameter in the function signature
-    defaults = defaults or []
+    defaults = defaults or ()
     args = args or []
     for arg in exclude_fields:
         if arg in args:
