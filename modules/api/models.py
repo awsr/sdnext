@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Optional, Dict, List, Type, Callable, Union
+from typing import Any, Optional, Type, Callable
 from pydantic import BaseModel, Field, create_model # pylint: disable=no-name-in-module
 from inflection import underscore
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img
@@ -35,7 +35,7 @@ class PydanticModelGenerator:
         model_name: str = None,
         class_instance = None,
         additional_fields = None,
-        exclude_fields: List = [],
+        exclude_fields: list = [],
     ):
         def field_type_generator(_k, v):
             field_type = v.annotation
@@ -86,8 +86,8 @@ class PydanticModelGenerator:
 
 class ItemSampler(BaseModel):
     name: str = Field(title="Name")
-    aliases: List[str] = Field(title="Aliases")
-    options: Dict[str, str] = Field(title="Options")
+    aliases: list[str] = Field(title="Aliases")
+    options: dict[str, str] = Field(title="Options")
 
 class ItemVae(BaseModel):
     model_name: str = Field(title="Model Name")
@@ -153,8 +153,8 @@ class ItemEmbedding(BaseModel):
 
 class ItemIPAdapter(BaseModel):
     adapter: str = Field(title="Adapter", default="Base", description="IP adapter name")
-    images: List[str] = Field(title="Image", default=[], description="IP adapter input images")
-    masks: Optional[List[str]] = Field(title="Mask", default=[], description="IP adapter mask images")
+    images: list[str] = Field(title="Image", default=[], description="IP adapter input images")
+    masks: Optional[list[str]] = Field(title="Mask", default=[], description="IP adapter mask images")
     scale: float = Field(title="Scale", default=0.5, ge=0, le=1, description="IP adapter scale")
     start: float = Field(title="Start", default=0.0, ge=0, le=1, description="IP adapter start step")
     end: float = Field(title="End", default=1.0, gt=0, le=1, description="IP adapter end step")
@@ -188,7 +188,7 @@ class ItemScript(BaseModel):
     name: str = Field(default=None, title="Name", description="Script name")
     is_alwayson: bool = Field(default=None, title="IsAlwayson", description="Flag specifying whether this script is an alwayson script")
     is_img2img: bool = Field(default=None, title="IsImg2img", description="Flag specifying whether this script is an img2img script")
-    args: List[ScriptArg] = Field(title="Arguments", description="List of script's arguments")
+    args: list[ScriptArg] = Field(title="Arguments", description="List of script's arguments")
 
 class ItemExtension(BaseModel):
     name: str = Field(title="Name", description="Extension name")
@@ -196,7 +196,7 @@ class ItemExtension(BaseModel):
     branch: str = Field(default="uknnown", title="Branch", description="Extension Repository Branch")
     commit_hash: str = Field(title="Commit Hash", description="Extension Repository Commit Hash")
     version: str = Field(title="Version", description="Extension Version")
-    commit_date: Union[str, int] = Field(title="Commit Date", description="Extension Repository Commit Date")
+    commit_date: str | int = Field(title="Commit Date", description="Extension Repository Commit Date")
     enabled: bool = Field(title="Enabled", description="Flag specifying whether this extension is enabled")
 
 ### request/response classes
@@ -205,7 +205,7 @@ ReqTxt2Img = PydanticModelGenerator(
     "StableDiffusionProcessingTxt2Img",
     StableDiffusionProcessingTxt2Img,
     [
-        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_index", "type": int | str, "default": 0},
         {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "script_name", "type": Optional[str], "default": ""},
@@ -213,7 +213,7 @@ ReqTxt2Img = PydanticModelGenerator(
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
-        {"key": "ip_adapter", "type": Optional[List[ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "ip_adapter", "type": Optional[list[ItemIPAdapter]], "default": None, "exclude": True},
         {"key": "face", "type": Optional[ItemFace], "default": None, "exclude": True},
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
@@ -223,7 +223,7 @@ if not hasattr(ReqTxt2Img, "__config__"):
 StableDiffusionTxt2ImgProcessingAPI = ReqTxt2Img
 
 class ResTxt2Img(BaseModel):
-    images: List[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
+    images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict
     info: str
 
@@ -231,7 +231,7 @@ ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
     StableDiffusionProcessingImg2Img,
     [
-        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_index", "type": int | str, "default": 0},
         {"key": "sampler_name", "type": str, "default": "UniPC"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "init_images", "type": list, "default": None},
@@ -243,7 +243,7 @@ ReqImg2Img = PydanticModelGenerator(
         {"key": "send_images", "type": bool, "default": True},
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
-        {"key": "ip_adapter", "type": Optional[List[ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "ip_adapter", "type": Optional[list[ItemIPAdapter]], "default": None, "exclude": True},
         {"key": "face_id", "type": Optional[ItemFace], "default": None, "exclude": True},
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
@@ -253,7 +253,7 @@ if not hasattr(ReqImg2Img, "__config__"):
 StableDiffusionImg2ImgProcessingAPI = ReqImg2Img
 
 class ResImg2Img(BaseModel):
-    images: List[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
+    images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict
     info: str
 
@@ -299,10 +299,10 @@ class ResProcessImage(ResProcess):
     image: str = Field(default=None, title="Image", description="The generated image in base64 format.")
 
 class ReqProcessBatch(ReqProcess):
-    imageList: List[FileData] = Field(title="Images", description="List of images to work on. Must be Base64 strings")
+    imageList: list[FileData] = Field(title="Images", description="List of images to work on. Must be Base64 strings")
 
 class ResProcessBatch(ResProcess):
-    images: List[str] = Field(title="Images", description="The generated images in base64 format.")
+    images: list[str] = Field(title="Images", description="The generated images in base64 format.")
 
 class ReqImageInfo(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")
@@ -323,13 +323,13 @@ class ReqPostLog(BaseModel):
     error: Optional[str] = Field(default=None, title="Error message", description="The error message to log")
 
 class ReqHistory(BaseModel):
-    id: Union[int, str, None] = Field(default=None, title="Task ID", description="Task ID")
+    id: int | str | None = Field(default=None, title="Task ID", description="Task ID")
 
 class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
 
 class ResProgress(BaseModel):
-    id: Union[int, str, None] = Field(None, title="TaskID", description="Task ID")
+    id: int | str | None = Field(None, title="TaskID", description="Task ID")
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
@@ -337,19 +337,19 @@ class ResProgress(BaseModel):
     textinfo: Optional[str] = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
-    id: Union[int, str, None] = Field(None, title="ID", description="Task ID")
+    id: int | str | None = Field(None, title="ID", description="Task ID")
     job: str = Field(title="Job", description="Job name")
     op: str = Field(title="Operation", description="Job state")
-    timestamp: Union[float, None] = Field(None, title="Timestamp", description="Job timestamp")
-    duration: Union[float, None] = Field(None, title="Duration", description="Job duration")
-    outputs: List[str] = Field(title="Outputs", description="List of filenames")
+    timestamp: float | None = Field(None, title="Timestamp", description="Job timestamp")
+    duration: float | None = Field(None, title="Duration", description="Job duration")
+    outputs: list[str] = Field(title="Outputs", description="List of filenames")
 
 class ResStatus(BaseModel):
     status: str = Field(title="Status", description="Current status")
     task: str = Field(title="Task", description="Current job")
     timestamp: Optional[str] = Field(None, title="Timestamp", description="Timestamp of the current job")
     current: str = Field(title="Task", description="Current job")
-    id: Union[int, str, None] = Field(None, title="ID", description="ID of the current task")
+    id: int | str | None = Field(None, title="ID", description="ID of the current task")
     job: int = Field(title="Job", description="Current job")
     jobs: int = Field(title="Jobs", description="Total jobs")
     total: int = Field(title="Total Jobs", description="Total jobs")
@@ -442,7 +442,7 @@ class ResGPU(BaseModel): # definition of http response
 
 # helper function
 
-def create_model_from_signature(func: Callable, model_name: str, base_model: Type[BaseModel] = BaseModel, additional_fields: List = [], exclude_fields: List[str] = []) -> type[BaseModel]:
+def create_model_from_signature(func: Callable, model_name: str, base_model: Type[BaseModel] = BaseModel, additional_fields: list = [], exclude_fields: list[str] = []) -> type[BaseModel]:
     from PIL import Image
 
     class Config:
@@ -459,12 +459,12 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: Typ
     defaults = (...,) * non_default_args + defaults
     keyword_only_params = {param: kwonlydefaults.get(param, Any) for param in kwonlyargs}
     for k, v in annotations.items():
-        if v == List[Image.Image]:
-            annotations[k] = List[str]
+        if v == list[Image.Image]:
+            annotations[k] = list[str]
         elif v == Image.Image:
             annotations[k] = str
         elif str(v) == 'typing.List[modules.control.unit.Unit]':
-            annotations[k] = List[str]
+            annotations[k] = list[str]
     model_fields = {param: (annotations.get(param, Any), default) for param, default in zip(args, defaults)}
 
     for fld in additional_fields:
