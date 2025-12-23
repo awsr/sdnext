@@ -463,7 +463,7 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: Typ
             annotations[k] = list[str]
         elif v == Image.Image:
             annotations[k] = str
-        elif str(v) == 'typing.List[modules.control.unit.Unit]':
+        elif str(v) in ('typing.List[modules.control.unit.Unit]', 'list[modules.control.unit.Unit]') :
             annotations[k] = list[str]
     model_fields = {param: (annotations.get(param, Any), default) for param, default in zip(args, defaults)}
 
