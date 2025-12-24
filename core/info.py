@@ -3,8 +3,12 @@ import subprocess
 import locale
 import platform
 import time
+import logging
 from typing import Final
 from modules.timer import init as timer_init # importing from modules allowed for now since timer does not import any other modules (will refactor later)
+
+
+log = logging.getLogger("sd")
 
 
 class VersionData(object):
@@ -19,55 +23,88 @@ class VersionData(object):
         except Exception:
             pass
 
-        githash, updated = self._get_hash_and_updated()
+        githash, updated = self.__get_hash_and_updated()
 
         self.app: Final = app
         self.updated: Final = updated
         self.hash: Final = githash
-        self.origin: Final = self._get_origin()
-        self.branch: Final = self._get_branch()
+        self.origin: Final = self.__get_origin()
+        self.branch: Final = self.__get_branch()
+        self.kanvas: Final = self.__get_kanvas_branch()
         self.fork: Final = fork if fork else self.origin.split("/sdnext")[0].split("/")[-1]
         self.url: Final = self.origin.removesuffix(".git") + "/tree/" + self.branch
-        self.ui: Final = self._get_ui_branch()
+        self.ui: Final = self.__get_ui_branch()
 
         timer_init.ts("version", t_start)
 
-    def _get_hash_and_updated(self):
+    def __get_hash_and_updated(self):
         try:
-            run_output = subprocess.run('git log --pretty=format:"%h %ad" -1 --date=short', stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+            run_output = subprocess.run("git log --pretty=format:\"%h %ad\" -1 --date=short", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
             if len(run_output.stdout) > 0:
-                return run_output.stdout.decode(encoding="utf8", errors="ignore").split(" ")
+                githash, updated = run_output.stdout.decode(encoding="utf8", errors="ignore").split(" ")
+                return githash, updated
             return ("unknown", "unknown")
-        except Exception:
+        except Exception as e:
+            log.warning(f"Version: where=commit {e}")
             return ("unknown", "unknown")
 
-    def _get_origin(self):
+    def __get_origin(self):
         try:
             run_output = subprocess.run("git remote get-url origin", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
             if len(run_output.stdout) > 0:
                 return run_output.stdout.decode(encoding="utf8", errors="ignore").replace("\n", "")
             return "unknown"
-        except Exception:
+        except Exception as e:
+            log.warning(f"Version: where=origin {e}")
             return "unknown"
 
-    def _get_branch(self):
+    def __get_branch(self):
         try:
             run_output = subprocess.run("git rev-parse --abbrev-ref HEAD", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
             if len(run_output.stdout) > 0:
-                return run_output.stdout.decode(encoding="utf8", errors="ignore").replace("\n", "")
+                branch = run_output.stdout.decode(encoding="utf8", errors="ignore").replace("\n", "")
+                if branch == "HEAD":
+                    log.warning("Version: detached state detected")
+                return branch
             return "unknown"
-        except Exception:
+        except Exception as e:
+            log.warning(f"Version: where=branch {e}")
             return "unknown"
 
-    def _get_ui_branch(self):
+    def __get_ui_branch(self):
         cwd = os.getcwd()
         try:
-            os.chdir("extensions-builtin/sdnext-modernui")
-            run_output = subprocess.run("git rev-parse --abbrev-ref HEAD", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
-            if len(run_output.stdout) > 0:
-                return "dev" if "dev" in run_output.stdout.decode(encoding="utf8", errors="ignore") else "main"
+            if os.path.exists("extensions-builtin/sdnext-modernui"):
+                os.chdir("extensions-builtin/sdnext-modernui")
+                run_output = subprocess.run("git rev-parse --abbrev-ref HEAD", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+                if len(run_output.stdout) > 0:
+                    if "dev" in run_output.stdout.decode(encoding="utf8", errors="ignore").replace("\n", ""):
+                        return "dev"
+                return "main"
+            else:
+                return "unavailable"
+        except Exception as e:
+            log.warning(f"Version: where=modernui {e}")
             return "unknown"
-        except Exception:
+        finally:
+            os.chdir(cwd)
+
+    def __get_kanvas_branch(self):
+        cwd = os.getcwd()
+        try:
+            if os.getenv("SD_KANVAS_DISABLE") is not None:
+                return "disabled"
+            elif os.path.exists("extensions-builtin/sdnext-kanvas"):
+                os.chdir("extensions-builtin/sdnext-kanvas")
+                run_output = subprocess.run("git rev-parse --abbrev-ref HEAD", stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True, check=True)
+                if len(run_output.stdout) > 0:
+                    if "dev" in run_output.stdout.decode(encoding="utf8", errors="ignore").replace("\n", ""):
+                        return "dev"
+                return "main"
+            else:
+                return "unavailable"
+        except Exception as e:
+            log.warning(f"Version: where=kanvas {e}")
             return "unknown"
         finally:
             os.chdir(cwd)
