@@ -10,7 +10,7 @@ import importlib
 import contextlib
 from threading import Thread
 from installer import log, git_commit, custom_excepthook, version
-from modules import timer
+from sdnext_core import timer
 import modules.loader
 import modules.hashes
 import modules.paths

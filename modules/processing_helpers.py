@@ -8,7 +8,8 @@ import numpy as np
 import cv2
 from PIL import Image
 from blendmodes.blend import blendLayers, BlendType
-from modules import shared, devices, images, sd_models, sd_samplers, sd_vae, sd_hijack_hypertile, processing_vae, timer
+from sdnext_core import timer
+from modules import shared, devices, images, sd_models, sd_samplers, sd_vae, sd_hijack_hypertile, processing_vae
 from modules.api import helpers
 
 

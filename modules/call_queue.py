@@ -4,7 +4,8 @@ import html
 import threading
 import time
 import cProfile
-from modules import shared, progress, errors, timer
+from sdnext_core import timer
+from modules import shared, progress, errors
 
 
 queue_lock = threading.Lock()

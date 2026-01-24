@@ -3,7 +3,8 @@ import time
 import torch
 from PIL import Image
 
-from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, extra_networks, call_queue
+from sdnext_core import timer
+from modules import shared, errors, memstats, progress, processing, sd_models, sd_samplers, extra_networks, call_queue
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
 from modules.video_models.video_utils import check_av

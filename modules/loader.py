@@ -6,7 +6,8 @@ import sys
 import logging
 import warnings
 import urllib3
-from modules import timer, errors
+from sdnext_core import timer
+from modules import errors
 
 
 initialized = False

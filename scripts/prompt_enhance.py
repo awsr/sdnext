@@ -9,7 +9,8 @@ import torch
 import transformers
 import gradio as gr
 from PIL import Image
-from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
+from sdnext_core import timer
+from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, ui_symbols
 from modules import ui_control_helpers
 
 

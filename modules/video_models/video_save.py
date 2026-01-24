@@ -6,7 +6,8 @@ import numpy as np
 import torch
 import einops
 from PIL import Image
-from modules import shared, errors ,timer, rife, processing
+from sdnext_core import timer
+from modules import shared, errors, rife, processing
 from modules.video_models.video_utils import check_av
 
 

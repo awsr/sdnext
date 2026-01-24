@@ -5,7 +5,8 @@ import time
 from collections import namedtuple
 from dataclasses import dataclass
 import gradio as gr
-from modules import paths, script_callbacks, extensions, script_loading, scripts_postprocessing, errors, timer
+from sdnext_core import timer
+from modules import paths, script_callbacks, extensions, script_loading, scripts_postprocessing, errors
 from installer import control_extensions
 
 

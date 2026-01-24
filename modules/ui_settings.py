@@ -1,6 +1,7 @@
 import os
 import gradio as gr
-from modules import timer, shared, paths, theme, sd_models, modelloader, generation_parameters_copypaste, call_queue, script_callbacks
+from sdnext_core import timer
+from modules import shared, paths, theme, sd_models, modelloader, generation_parameters_copypaste, call_queue, script_callbacks
 from modules import ui_common, ui_loadsave, ui_history, ui_components, ui_symbols
 
 

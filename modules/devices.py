@@ -211,7 +211,8 @@ def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
 
     global previous_oom # pylint: disable=global-statement
     import gc
-    from modules import timer, memstats
+    from sdnext_core import timer
+    from modules import memstats
     from modules.shared import cmd_opts
 
     t0 = time.time()

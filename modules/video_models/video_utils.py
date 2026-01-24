@@ -3,7 +3,8 @@ import sys
 import time
 from PIL import Image
 from installer import install
-from modules import shared, sd_models, timer, errors, devices
+from sdnext_core import timer
+from modules import shared, sd_models, errors, devices
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None

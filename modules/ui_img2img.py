@@ -1,5 +1,6 @@
 import gradio as gr
-from modules import timer, shared, call_queue, generation_parameters_copypaste, processing_vae
+from sdnext_core import timer
+from modules import shared, call_queue, generation_parameters_copypaste, processing_vae
 from modules import ui_common, ui_sections, ui_guidance
 
 

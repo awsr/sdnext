@@ -1,7 +1,8 @@
 import time
 import torch
 import rich.progress as rp
-from modules import shared, errors ,devices, sd_models, timer, memstats
+from sdnext_core import timer
+from modules import shared, errors ,devices, sd_models, memstats
 from modules.framepack import framepack_vae # pylint: disable=wrong-import-order
 from modules.framepack import framepack_hijack # pylint: disable=wrong-import-order
 from modules.video_models.video_save import save_video # pylint: disable=wrong-import-order

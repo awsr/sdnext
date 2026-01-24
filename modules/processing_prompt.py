@@ -1,6 +1,7 @@
 import os
 import torch
-from modules import shared, errors, timer, prompt_parser_diffusers
+from sdnext_core import timer
+from modules import shared, errors, prompt_parser_diffusers
 
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None) is not None

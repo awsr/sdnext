@@ -498,7 +498,8 @@ def apply_layerwise(sd_model, quiet:bool=False):
 
 def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weights_dtype: str = None, quantized_matmul_dtype: str = None, modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
     global quant_last_model_name, quant_last_model_device # pylint: disable=global-statement
-    from modules import devices, shared, timer
+    from sdnext_core import timer
+    from modules import devices, shared
     from modules.sdnq import sdnq_post_load_quant
     from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
 

@@ -1,6 +1,7 @@
 import os
 import gradio as gr
-from modules import shared, timer, images, ui_common, ui_sections, generation_parameters_copypaste
+from sdnext_core import timer
+from modules import shared, images, ui_common, ui_sections, generation_parameters_copypaste
 
 
 debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None

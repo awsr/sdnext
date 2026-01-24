@@ -1,7 +1,8 @@
 import time
 import torch
 from PIL import Image
-from modules import devices, shared, sd_models, timer, extra_networks
+from sdnext_core import timer
+from modules import devices, shared, sd_models, extra_networks
 
 
 loaded_model: str = None

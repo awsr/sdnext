@@ -2,7 +2,8 @@ import os
 import time
 import gradio as gr
 from modules.control import unit
-from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
+from sdnext_core import timer
+from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae # pylint: disable=ungrouped-imports
 from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
 import installer

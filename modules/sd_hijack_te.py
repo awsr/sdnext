@@ -1,6 +1,7 @@
 import os
 import time
-from modules import shared, errors, timer, sd_models
+from sdnext_core import timer
+from modules import shared, errors, sd_models
 
 
 def hijack_encode_prompt(*args, **kwargs):
