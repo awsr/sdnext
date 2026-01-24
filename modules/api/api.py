@@ -156,7 +156,7 @@ class Api:
             "loop": "auto", # auto, asyncio, uvloop
             "http": "auto", # auto, h11, httptools
         }
-        from modules.server import UvicornServer
+        from sdnext_core.server import UvicornServer
         http_server = UvicornServer(self.app, **config)
         # from modules.server import HypercornServer
         # server = HypercornServer(self.app, **config)
