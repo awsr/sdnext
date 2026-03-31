@@ -80,8 +80,8 @@ class SDUpscaleScript(scripts_manager.Script):
 
             image_index = 0
             for _y, _h, row in grid.tiles:
-                for tiledata in row:
-                    tiledata[2] = work_results[image_index] if image_index < len(work_results) else Image.new("RGB", (p.width, p.height))
+                for row_index, tiledata in enumerate(row):
+                    row[row_index] = (tiledata[0], tiledata[1], work_results[image_index] if image_index < len(work_results) else Image.new("RGB", (p.width, p.height)))
                     image_index += 1
 
             combined_image = images.combine_grid(grid)

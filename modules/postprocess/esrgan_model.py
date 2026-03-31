@@ -4,7 +4,7 @@ from PIL import Image
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
 import modules.postprocess.esrgan_model_arch as arch
 from modules import images, devices, shared
-from modules.image.grid import split_grid
+from modules.image.grid import split_grid, GridRow, GridTiles
 from modules.logger import log, console
 from modules.upscaler import Upscaler, UpscalerData, compile_upscaler
 
@@ -197,7 +197,7 @@ def esrgan_upscale(model, img):
         return upscale_without_tiling(model, img)
 
     grid = split_grid(img, shared.opts.upscaler_tile_size, shared.opts.upscaler_tile_size, shared.opts.upscaler_tile_overlap)
-    newtiles = []
+    newtiles: GridTiles = []
     scale_factor = 1
 
     with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=console) as progress:
@@ -208,16 +208,16 @@ def esrgan_upscale(model, img):
         for y, h, row in grid.tiles:
             if shared.state.interrupted:
                 break
-            newrow = []
+            newrow: GridRow = []
             for tiledata in row:
                 if shared.state.interrupted:
                     break
                 x, w, tile = tiledata
                 output = upscale_without_tiling(model, tile)
                 scale_factor = output.width // tile.width
-                newrow.append([x * scale_factor, w * scale_factor, output])
+                newrow.append((x * scale_factor, w * scale_factor, output))
                 progress.update(task, advance=1, description="Upscaling")
-            newtiles.append([y * scale_factor, h * scale_factor, newrow])
+            newtiles.append((y * scale_factor, h * scale_factor, newrow))
 
     newgrid = images.Grid(newtiles, grid.tile_w * scale_factor, grid.tile_h * scale_factor, grid.image_w * scale_factor, grid.image_h * scale_factor, grid.overlap * scale_factor)
     output = images.combine_grid(newgrid)

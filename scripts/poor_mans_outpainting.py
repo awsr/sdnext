@@ -3,6 +3,7 @@ import gradio as gr
 from PIL import Image, ImageDraw
 from modules import images, devices, scripts_manager
 from modules.processing import get_processed, process_images
+from modules.processing_class import StableDiffusionProcessing
 from modules.shared import opts, state, log
 from modules.image.grid import split_grid
 
@@ -26,7 +27,7 @@ class OutpaintingAltScript(scripts_manager.Script):
             direction = gr.CheckboxGroup(label="Outpainting direction", choices=['left', 'right', 'up', 'down'], value=['left', 'right', 'up', 'down'], elem_id=self.elem_id("direction"))
         return [pixels, mask_blur, direction]
 
-    def run(self, p, pixels, mask_blur, direction): # pylint: disable=arguments-differ
+    def run(self, p: StableDiffusionProcessing, pixels, mask_blur, direction): # pylint: disable=arguments-differ
         initial_seed = None
         initial_info = None
         p.mask_blur = mask_blur * 2
@@ -99,11 +100,11 @@ class OutpaintingAltScript(scripts_manager.Script):
             work_results += processed.images
         image_index = 0
         for y, h, row in grid.tiles:
-            for tiledata in row:
+            for row_index, tiledata in enumerate(row):
                 x, w = tiledata[0:2]
                 if x >= left and x+w <= img.width - right and y >= up and y+h <= img.height - down:
                     continue
-                tiledata[2] = work_results[image_index] if image_index < len(work_results) else Image.new("RGB", (p.width, p.height))
+                row[row_index] = (x, w, work_results[image_index] if image_index < len(work_results) else Image.new("RGB", (p.width, p.height)))
                 image_index += 1
         combined_image = images.combine_grid(grid)
         if opts.samples_save:

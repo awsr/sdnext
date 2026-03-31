@@ -1,5 +1,5 @@
 import math
-from typing import NamedTuple
+from typing import NamedTuple, TypeAlias
 
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
@@ -8,8 +8,12 @@ from modules import script_callbacks, shared
 from modules.logger import log
 
 
+GridRow: TypeAlias = list[tuple[int, int, Image.Image]]
+GridTiles: TypeAlias = list[tuple[int, int, GridRow]]
+
+
 class Grid(NamedTuple):
-    tiles: list
+    tiles: GridTiles
     tile_w: int
     tile_h: int
     image_w: int
@@ -89,7 +93,7 @@ def split_grid(image: Image.Image, tile_w=512, tile_h=512, overlap=64):
     dy = (h - tile_h) / (rows - 1) if rows > 1 else 0
     grid = Grid([], tile_w, tile_h, w, h, overlap)
     for row in range(rows):
-        row_images = []
+        row_images: GridRow = []
         y = int(row * dy)
         if y + tile_h >= h:
             y = h - tile_h
@@ -98,8 +102,8 @@ def split_grid(image: Image.Image, tile_w=512, tile_h=512, overlap=64):
             if x + tile_w >= w:
                 x = w - tile_w
             tile = image.crop((x, y, x + tile_w, y + tile_h))
-            row_images.append([x, tile_w, tile])
-        grid.tiles.append([y, tile_h, row_images])
+            row_images.append((x, tile_w, tile))
+        grid.tiles.append((y, tile_h, row_images))
     return grid
 
 
