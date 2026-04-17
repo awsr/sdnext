@@ -1,11 +1,13 @@
-import os
 import json
+import os
 from typing import TYPE_CHECKING, TypedDict
+
 import gradio as gr
-import modules.shared
+
 import modules.extensions
-from modules.logger import log
+import modules.shared
 from modules.json_helpers import writefile
+from modules.logger import log
 
 if TYPE_CHECKING:
     class FontParams(TypedDict):
