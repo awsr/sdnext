@@ -1,10 +1,16 @@
 import os
 import json
+from typing import TYPE_CHECKING, TypedDict
 import gradio as gr
 import modules.shared
 import modules.extensions
 from modules.logger import log
 from modules.json_helpers import writefile
+
+if TYPE_CHECKING:
+    class FontParams(TypedDict):
+        font: list[str]
+        font_mono: list[str]
 
 
 gradio_theme = gr.themes.Base()
@@ -89,7 +95,7 @@ def list_themes():
 def reload_gradio_theme():
     global gradio_theme # pylint: disable=global-statement
     theme_name = modules.shared.opts.gradio_theme
-    default_font_params = {
+    default_font_params: FontParams = {
         'font':['Helvetica', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'font_mono':['IBM Plex Mono', 'ui-monospace', 'Consolas', 'monospace']
     }
