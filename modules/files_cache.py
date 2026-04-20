@@ -14,12 +14,11 @@ do_cache_folders = os.environ.get('SD_NO_CACHE', None) is None
 RecursiveType: TypeAlias = bool | Callable[[str], bool]
 
 
-def real_path(directory_path:str) -> str | None:
+def real_path(directory_path: str):
     try:
         return os.path.abspath(os.path.expanduser(directory_path))
     except Exception:
-        pass
-    return None
+        return None
 
 
 @dataclass(frozen=True)
@@ -126,6 +125,8 @@ def get_directory(directory_or_path: str | Directory, /, fetch: bool = True):
         else:
             directory_or_path = directory_or_path.path
     dir_path = real_path(directory_or_path)
+    if not dir_path:
+        return None
     if not cache_folders.get(dir_path, None):
         if fetch:
             directory = fetch_directory(directory_path=dir_path)
