@@ -85,7 +85,7 @@ class DirectoryCache(UserDict[str, Directory]):
         if directory:
             map(delete_cached_directory, directory.directories)
             directory.clear()
-        self.data.pop(directory_path)  # Don't return value since we're just deleting it
+        self.data.pop(directory_path, None)  # Don't return value since we're just deleting it
 
 
 def clean_directory(directory: Directory, /, recursive: RecursiveType = False) -> bool:
@@ -193,7 +193,7 @@ def walk(top, recurse: RecursiveType = True, cached=True):
 
 def delete_cached_directory(directory_path: str) -> None:
     if directory_path in cache_folders:
-        cache_folders.pop(directory_path)  # Don't return value since we're just deleting it
+        cache_folders.pop(directory_path, None)  # Don't return value since we're just deleting it
 
 
 def is_directory(dir_path: str) -> bool:
