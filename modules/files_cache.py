@@ -223,14 +223,12 @@ def unique_directories(directories: Sequence[str], /, recursive: RecursiveType =
             child_directory = directories_list[-1][len(directory):]
             if child_directory:
                 next_directory = _directory
-                if not callable(recursive):
-                    _remove_directory = next_directory
-                else:
-                    for sub_directory in child_directory.split(os.path.sep):
-                        next_directory = os.path.join(next_directory, sub_directory)
-                        if recursive(next_directory):
-                            _remove_directory = os.path.join(next_directory, '')
-                            break
+                _remove_directory = ''
+                for sub_directory in child_directory.split(os.path.sep):
+                    next_directory = os.path.join(next_directory, sub_directory)
+                    if recursive(next_directory):
+                        _remove_directory = os.path.join(next_directory, '')
+                        break
                 while _remove_directory and directories_list:
                     _d = directories_list.pop()
                     if not directories_list[-1].startswith(_remove_directory):
