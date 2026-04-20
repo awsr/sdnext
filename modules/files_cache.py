@@ -235,15 +235,15 @@ def unique_directories(directories: Sequence[str], /, recursive: RecursiveType =
                         break
 
 
-    realpaths = (real_path(directory_path) for directory_path in filter(bool, directory_paths))
-    return {real_directory_path: True for real_directory_path in filter(bool, realpaths)}.keys()
 def unique_paths(directory_paths: Sequence[str]):
+    realpaths = (real_path(directory_path) for directory_path in filter(None, directory_paths))
+    return {real_directory_path: True for real_directory_path in filter(None, realpaths)}.keys()
 
 
 def get_directories(*directory_paths: str, fetch: bool = True, recursive: RecursiveType = True):
     u_directory_paths = unique_directories(directory_paths, recursive=recursive)
     directories = (get_directory(directory_path, fetch=fetch) for directory_path in u_directory_paths)
-    return filter(bool, directories)
+    return filter(None, directories)
 
 
 def directory_files(*directories_or_paths: str | Directory, recursive: RecursiveType = True) -> Iterator[str]:
@@ -256,13 +256,13 @@ def directory_files(*directories_or_paths: str | Directory, recursive: Recursive
                 directory_files(directory, recursive=recursive)
                 for directory
                 in filter(
-                    bool,
-                    map(get_directory, filter(((bool if recursive else False) if not callable(recursive) else recursive), directory_object.directories))
+                    None,
+                    map(get_directory, filter(((None if recursive else lambda: False) if not callable(recursive) else recursive), directory_object.directories))
                 )
             )
         )
         for directory_object
-        in filter(bool, map(get_directory, directories_or_paths))
+        in filter(None, map(get_directory, directories_or_paths))
     )
 
 
