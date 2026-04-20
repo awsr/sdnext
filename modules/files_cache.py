@@ -232,7 +232,7 @@ def unique_directories(directories: Sequence[str], /, recursive: RecursiveType =
                 while _remove_directory and directories_list:
                     _d = directories_list.pop()
                     if not directories_list[-1].startswith(_remove_directory):
-                        del _remove_directory
+                        break
 
 
     realpaths = (real_path(directory_path) for directory_path in filter(bool, directory_paths))
