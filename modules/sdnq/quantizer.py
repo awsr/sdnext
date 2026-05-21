@@ -20,7 +20,7 @@ from .packed_float import pack_float
 from .forward import get_forward_func
 from .layers import get_sdnq_wrapper_class
 
-from .quant_utils import quantize_weight, apply_svdquant, prepare_weight_for_matmul, prepare_svd_for_matmul
+from .quant_utils import quantize_weight, apply_svdquant, apply_hadamard, prepare_weight_for_matmul, prepare_svd_for_matmul
 from .utils import check_param_name_in, get_quant_args_from_config, get_quant_kwargs, add_module_skip_keys
 
 
@@ -30,7 +30,7 @@ class QuantizationMethod(str, Enum):
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, use_svd=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, using_pre_calculated_svd=False, skip_sr=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, hadamard_group_size=128, svd_rank=32, svd_steps=8, use_svd=False, use_hadamard=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, using_pre_calculated_svd=False, using_pre_rotated_hadamard=False, skip_sr=False, param_name=None): # pylint: disable=unused-argument
     num_of_groups = 1
     is_conv_type = False
     is_conv_transpose_type = False
@@ -84,10 +84,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     elif layer_class_name in linear_types:
         is_linear_type = True
         reduction_axes = -1
-        try:
-            output_channel_size, channel_size = weight.shape
-        except Exception as e:
-            raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} weight_shape={weight.shape} weights_dtype={weights_dtype} quantized_matmul_dtype={quantized_matmul_dtype} unsupported") from e
+        output_channel_size, channel_size = weight.shape
         use_quantized_matmul = use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 and output_channel_size % 16 == 0 and channel_size % 16 == 0
     else:
         if weight.ndim > 1:
@@ -107,6 +104,9 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         )
     ):
         scale_dtype = torch_dtype
+
+    if use_hadamard:
+        weight, use_hadamard, hadamard_group_size = apply_hadamard(weight, group_size=hadamard_group_size, layer_class_name=layer_class_name)
 
     if use_svd:
         try:
@@ -147,25 +147,21 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         if num_of_groups > 1:
             if result_shape is None:
                 result_shape = weight.shape
-            new_shape = list(result_shape)
             if is_conv_type:
                 # output_channel_size, channel_size, X, X
                 # output_channel_size, num_of_groups, group_size, X, X
-                new_shape[1] = group_size
-                new_shape.insert(1, num_of_groups)
                 reduction_axes = 2
+                weight = weight.unflatten(1, (num_of_groups, group_size))
             elif is_conv_transpose_type:
                 #channel_size, output_channel_size, X, X
                 #num_of_groups, group_size, output_channel_size, X, X
-                new_shape[0] = group_size
-                new_shape.insert(0, num_of_groups)
                 reduction_axes = 1
+                weight = weight.unflatten(1, (group_size, num_of_groups))
             else:
                 # output_channel_size, channel_size
                 # output_channel_size, num_of_groups, group_size
-                last_dim_index = weight.ndim
-                new_shape[last_dim_index - 1 : last_dim_index] = (num_of_groups, group_size)
-            weight = weight.reshape(new_shape)
+                reduction_axes = -1
+                weight = weight.unflatten(-1, (num_of_groups, group_size))
         else:
             group_size = -1
 
@@ -202,12 +198,14 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=quantized_matmul_dtype,
+        hadamard_group_size=hadamard_group_size,
         group_size=group_size,
         svd_rank=svd_rank,
         svd_steps=svd_steps,
         use_quantized_matmul=use_quantized_matmul,
         re_quantize_for_matmul=re_quantize_for_matmul,
         use_stochastic_rounding=use_stochastic_rounding,
+        use_hadamard=bool(use_hadamard or using_pre_rotated_hadamard),
         layer_class_name=layer_class_name,
     )
 
@@ -215,7 +213,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="uint4", quantized_matmul_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, quantization_config=None, torch_dtype=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="uint4", quantized_matmul_dtype=None, group_size=0, hadamard_group_size=128, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, use_hadamard=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, quantization_config=None, torch_dtype=None, param_name=None): # pylint: disable=unused-argument
     if torch_dtype is None:
         torch_dtype = weight.dtype
     if dynamic_loss_threshold is None or dynamic_loss_threshold < 0:
@@ -223,21 +221,29 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
     if weight.dtype != torch.float64:
         weight = weight.to(dtype=torch.float32)
-    weight_std = weight.std().square_().clamp_(min=1e-8)
+    original_weight_fp32 = weight.clone()
+    weight_std = original_weight_fp32.std().square_().clamp_(min=1e-8)
+
+    if use_hadamard:
+        weight, use_hadamard, hadamard_group_size = apply_hadamard(weight, group_size=hadamard_group_size, layer_class_name=layer_class_name)
 
     if use_svd:
         try:
-            svd_weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
-            svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, use_quantized_matmul)
+            weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
+            svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, False)
+            if use_quantized_matmul:
+                svd_up_t, svd_down_t = svd_up.clone().t_(), svd_down.clone().t_()
+                svd_up_t, svd_down_t = prepare_svd_for_matmul(svd_up, svd_down, True)
+            else:
+                svd_up_t, svd_down_t = None, None
         except Exception:
             svd_up, svd_down = None, None
-            svd_weight = weight
+            svd_up_t, svd_down_t = None, None
     else:
         svd_up, svd_down = None, None
-        svd_weight = weight
+        svd_up_t, svd_down_t = None, None
 
     quantization_loss = None
-    svd_is_transposed = False
     for i in range(weights_dtype_order.index(weights_dtype), len(weights_dtype_order)):
         current_weights_dtype = weights_dtype_order[i]
         if quantized_matmul_dtype is None and not is_fp8_mm_supported and not dtype_dict[current_weights_dtype]["is_integer"] and dtype_dict[current_weights_dtype]["num_bits"] < 16:
@@ -246,38 +252,56 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             current_use_quantized_matmul = use_quantized_matmul
 
         sdnq_dequantizer, weight_data = sdnq_quantize_layer_weight(
-            svd_weight,
+            weight,
             layer_class_name=layer_class_name,
             weights_dtype=current_weights_dtype,
             quantized_matmul_dtype=quantized_matmul_dtype,
             torch_dtype=torch_dtype,
+            hadamard_group_size=hadamard_group_size,
             group_size=group_size,
             svd_rank=svd_rank,
             svd_steps=svd_steps,
             use_svd=False,
+            use_hadamard=False,
             using_pre_calculated_svd=use_svd,
+            using_pre_rotated_hadamard=use_hadamard,
             use_quantized_matmul=current_use_quantized_matmul,
             use_stochastic_rounding=use_stochastic_rounding,
             dequantize_fp32=dequantize_fp32,
             param_name=param_name,
         )
 
-        if use_svd and not svd_is_transposed and sdnq_dequantizer.use_quantized_matmul:
-            svd_up = svd_up.t_()
-            svd_down = svd_down.t_()
-            svd_is_transposed = True
+        if sdnq_dequantizer.use_quantized_matmul:
+            weight_data["svd_up"] = svd_up_t
+            weight_data["svd_down"] = svd_down_t
+        else:
+            weight_data["svd_up"] = svd_up
+            weight_data["svd_down"] = svd_down
 
-        weight_data["svd_up"] = svd_up
-        weight_data["svd_down"] = svd_down
-
-        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(**weight_data, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=weight.dtype, skip_compile=True)).div_(weight_std)
+        quantization_loss = torch.nn.functional.mse_loss(
+            original_weight_fp32,
+            sdnq_dequantizer(
+                weight_data["weight"],
+                weight_data["scale"],
+                zero_point=weight_data["zero_point"],
+                svd_up=weight_data["svd_up"],
+                svd_down=weight_data["svd_down"],
+                skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
+                dtype=weight.dtype,
+                skip_compile=True,
+            ),
+        ).div_(weight_std)
         if quantization_loss <= dynamic_loss_threshold:
+            del original_weight_fp32
             return sdnq_dequantizer, weight_data
+    del original_weight_fp32
     return None
 
 
 @devices.inference_context()
 def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: torch.dtype | None = None, param_name: str = "", quant_kwargs: dict | None = None): # pylint: disable=unused-argument
+    if torch_dtype is None:
+        torch_dtype = layer.weight.dtype
     if quant_kwargs is None:
         quant_kwargs = get_quant_kwargs(layer, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
 
@@ -312,7 +336,7 @@ def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: t
         for key, value in weight_data.items():
             if isinstance(value, (torch.Tensor, torch.nn.Parameter)):
                 setattr(layer, key, torch.nn.Parameter(value.to(return_device, non_blocking=non_blocking), requires_grad=False))
-                setattr(getattr(layer, key), "_is_hf_initialized", True)
+                setattr(getattr(layer, key), "_is_hf_initialized", True) # noqa: B010
             else:
                 setattr(layer, key, value)
         del weight_data
@@ -326,7 +350,7 @@ def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: t
         if quant_kwargs["use_quantized_matmul"] and not layer.sdnq_dequantizer.use_quantized_matmul:
             quantization_config.modules_to_not_use_matmul.append(param_name)
     else:
-        layer.weight = layer.weight.to(return_device, dtype=torch_dtype, non_blocking=non_blocking)
+        layer.weight = torch.nn.Parameter(layer.weight.to(return_device, dtype=torch_dtype, non_blocking=non_blocking), requires_grad=False)
         if use_dynamic_quantization:
             quantization_config.modules_to_not_convert.append(param_name)
 
@@ -345,16 +369,17 @@ def apply_sdnq_to_module(model, quantization_config: "SDNQConfig", torch_dtype: 
         if hasattr(module, "weight") and module.weight is not None:
             param_name = param_name + ".weight"
             layer_class_name = module.__class__.__name__
+            param_in_modules_to_not_convert = check_param_name_in(param_name, quantization_config.modules_to_not_convert)
             if (
                 layer_class_name in allowed_types
                 and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}
-                and check_param_name_in(param_name, quantization_config.modules_to_not_convert) is None
+                and param_in_modules_to_not_convert is None
                 and not (layer_class_name in embedding_types and not quantization_config.quant_embedding)
                 and not ((layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quantization_config.quant_conv)
             ):
                 module, quantization_config = sdnq_quantize_layer(module, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
                 setattr(model, module_name, module)
-            else:
+            elif param_in_modules_to_not_convert is None:
                 quantization_config.modules_to_not_convert.append(param_name)
 
         module, quantization_config = apply_sdnq_to_module(module, quantization_config, torch_dtype=torch_dtype, full_param_name=param_name)
@@ -367,12 +392,13 @@ def sdnq_post_load_quant(
     model: torch.nn.Module,
     weights_dtype: str = "int8",
     quantized_matmul_dtype: str | None = None,
-    torch_dtype: torch.dtype | None = None,
+    hadamard_group_size: int = 128,
     group_size: int = 0,
     svd_rank: int = 32,
     svd_steps: int = 8,
     dynamic_loss_threshold: float | None = None,
     use_svd: bool = False,
+    use_hadamard: bool = False,
     quant_conv: bool = False,
     quant_embedding: bool = False,
     use_quantized_matmul: bool = False,
@@ -382,20 +408,23 @@ def sdnq_post_load_quant(
     dequantize_fp32: bool = True,
     non_blocking: bool = False,
     add_skip_keys:bool = True,
-    quantization_device: torch.device | None = None,
-    return_device: torch.device | None = None,
     modules_to_not_convert: list[str] | None = None,
     modules_to_not_use_matmul: list[str] | None = None,
     modules_dtype_dict: dict[str, list[str]] | None = None,
     modules_quant_config: dict[str, dict] | None = None,
+    quantization_device: torch.device | None = None,
+    return_device: torch.device | None = None,
+    torch_dtype: torch.dtype | None = None,
 ):
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
+        hadamard_group_size=hadamard_group_size,
         group_size=group_size,
         svd_rank=svd_rank,
         svd_steps=svd_steps,
         dynamic_loss_threshold=dynamic_loss_threshold,
         use_svd=use_svd,
+        use_hadamard=use_hadamard,
         quant_conv=quant_conv,
         quant_embedding=quant_embedding,
         use_quantized_matmul=use_quantized_matmul,
@@ -678,6 +707,8 @@ class SDNQConfig(QuantizationConfigMixin):
             The target dtype for quantized matmul.
             `None` will use "int8" with integer weight dtypes and "float8_e4m3fn" or "float16" with float weight dtypes.
             Supported values are: ("int8", "float8_e4m3fn", "float16")
+        hadamard_group_size (`int`, *optional*, defaults to `0`):
+            Used to decide how many elements of a tensor will share the same Hadamard rotation group.
         group_size (`int`, *optional*, defaults to `0`):
             Used to decide how many elements of a tensor will share the same quantization group.
             group_size = 0 will automatically select a group size based on weights_dtype.
@@ -690,6 +721,8 @@ class SDNQConfig(QuantizationConfigMixin):
             The number of iterations to use in svd lowrank estimation.
         use_svd (`bool`, *optional*, defaults to `False`):
             Enabling this option will use SVDQuant algorithm on top of SDNQ quantization.
+        use_hadamard (`bool`, *optional*, defaults to `False`):
+            Enabling this option will use Hadamard rotation on top of SDNQ quantization.
         quant_conv (`bool`, *optional*, defaults to `False`):
             Enabling this option will quantize the convolutional layers in UNet models too.
         quant_embedding (`bool`, *optional*, defaults to `False`):
@@ -727,11 +760,13 @@ class SDNQConfig(QuantizationConfigMixin):
         self,
         weights_dtype: str = "int8",
         quantized_matmul_dtype: str | None = None,
+        hadamard_group_size: int = 128,
         group_size: int = 0,
         svd_rank: int = 32,
         svd_steps: int = 8,
         dynamic_loss_threshold: float | None = None,
         use_svd: bool = False,
+        use_hadamard: bool = False,
         use_grad_ckpt: bool = True,
         quant_conv: bool = False,
         quant_embedding: bool = False,
@@ -759,11 +794,13 @@ class SDNQConfig(QuantizationConfigMixin):
             self.quant_method = QuantizationMethod.SDNQ_TRAINING
         else:
             self.quant_method = QuantizationMethod.SDNQ
+        self.hadamard_group_size = hadamard_group_size
         self.group_size = group_size
         self.svd_rank = svd_rank
         self.dynamic_loss_threshold = dynamic_loss_threshold
         self.svd_steps = svd_steps
         self.use_svd = use_svd
+        self.use_hadamard = use_hadamard
         self.use_grad_ckpt = use_grad_ckpt
         self.quant_conv = quant_conv
         self.quant_embedding = quant_embedding

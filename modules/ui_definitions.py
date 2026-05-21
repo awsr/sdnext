@@ -140,6 +140,7 @@ def create_settings(cmd_opts):
 
     # --- Model Quantization ---
     options_templates.update(options_section(("quantization", "Model Quantization"), {
+        "quantize_sep": OptionInfo("<h2>Quantization General</h2>", "", gr.HTML),
         "models_not_to_quant": OptionInfo("", "Model types not to quantize"),
 
         "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
@@ -151,11 +152,13 @@ def create_settings(cmd_opts):
         "sdnq_quantize_matmul_mode_te": OptionInfo("Same as model", "Quantized MatMul type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_matmul_modes}),
         "sdnq_modules_to_not_convert": OptionInfo("", "Modules to not convert"),
         "sdnq_modules_dtype_dict": OptionInfo("{}", "Modules dtype dict"),
-        "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
+        "sdnq_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
+        "sdnq_hadamard_group_size": OptionInfo(128, "Hadamard group size", gr.Slider, {"minimum": 4, "maximum": 4096, "step": 1}),
         "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
         "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
         "sdnq_dynamic_loss_threshold": OptionInfo(-1e-8, "Dynamic loss threshold", gr.Slider, {"minimum": -1e-8, "maximum": 1e-1, "step": 1e-8}),
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
+        "sdnq_use_hadamard": OptionInfo(False, "Use Hadamard rotations", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
         "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
@@ -439,7 +442,7 @@ def create_settings(cmd_opts):
         "browser_folders": OptionInfo("", "Additional image browser folders"),
         "browser_gallery_autoupdate": OptionInfo(True, "Gallery auto-update on tab change", gr.Checkbox, { "visible": False}),
         "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails", gr.Checkbox, { "visible": False}),
-        "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
+        "viewer_show_metadata": OptionInfo(True, "Show metadata in image viewer"),
 
         "save_sep_options": OptionInfo("<h2>Intermediate Image Saving</h2>", "", gr.HTML),
         "save_init_img": OptionInfo(False, "Save init images"),
@@ -447,8 +450,6 @@ def create_settings(cmd_opts):
         "save_images_before_refiner": OptionInfo(False, "Save image before refiner"),
         "save_images_before_detailer": OptionInfo(False, "Save image before detailer"),
         "save_images_before_color_correction": OptionInfo(False, "Save image before color correction"),
-        "save_mask": OptionInfo(False, "Save inpainting mask"),
-        "save_mask_composite": OptionInfo(False, "Save inpainting masked composite"),
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
 
         "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
@@ -549,8 +550,6 @@ def create_settings(cmd_opts):
 
         "images_sep_ui": OptionInfo("<h2>Outputs & Images</h2>", "", gr.HTML),
         "return_grid": OptionInfo(True, "Show grid in results"),
-        "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
-        "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
         "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
     }))
@@ -565,11 +564,12 @@ def create_settings(cmd_opts):
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
-        "notification_audio_path": OptionInfo("html/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
+        "notification_audio_path": OptionInfo("ui/assets/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
     }))
 
     # --- Postprocessing ---
     options_templates.update(options_section(('postprocessing', "Postprocessing"), {
+        "postprocessing_sep": OptionInfo("<h2>Postprocessing Operations</h2>", "", gr.HTML),
         'postprocessing_enable_in_main_ui': OptionInfo([], "Additional postprocessing operations", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()]}),
         'postprocessing_operation_order': OptionInfo([], "Postprocessing operation order", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()], "visible": False }),
 
@@ -588,7 +588,6 @@ def create_settings(cmd_opts):
         "postprocessing_sep_seedvr": OptionInfo("<h2>SeedVR</h2>", "", gr.HTML),
         "seedvr_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
 
-
         "postprocessing_sep_upscalers": OptionInfo("<h2>Upscaling</h2>", "", gr.HTML),
         "upscaler_unload": OptionInfo(False, "Unload upscaler after processing"),
         "upscaler_latent_steps": OptionInfo(20, "Upscaler latent steps", gr.Slider, {"minimum": 4, "maximum": 100, "step": 1}),
@@ -599,7 +598,6 @@ def create_settings(cmd_opts):
         "resize_quality": OptionInfo("PIL Lanczos", "Image resize algorithm", gr.Dropdown, {"choices": ["PIL Lanczos", "Sharpfin MKS2021", "Sharpfin Lanczos3", "Sharpfin Mitchell", "Sharpfin Catmull-Rom"]}),
         "resize_linearize_srgb": OptionInfo(True, "Apply sRGB linearization"),
     }))
-
 
     # --- Huggingface ---
     options_templates.update(options_section(('huggingface', "Huggingface"), {

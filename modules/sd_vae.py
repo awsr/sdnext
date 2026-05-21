@@ -14,7 +14,7 @@ if TYPE_CHECKING:
 
 vae_ignore_keys = {"model_ema.decay", "model_ema.num_updates"}
 vae_dict: dict[str, str] = {}
-base_vae = None
+base_vae = None  # Unused
 loaded_vae_file: str | None = None
 checkpoint_info: CheckpointInfo | None = None
 vae_path = os.path.abspath(os.path.join(paths.models_path, 'VAE'))
@@ -110,8 +110,8 @@ def find_vae_near_checkpoint(checkpoint_file: str):
 def resolve_vae(checkpoint_file: str):
     if shared.opts.sd_vae == 'TAESD':
         return None, None
-    if shared.cmd_opts.vae is not None and isinstance(shared.cmd_opts.vae, str): # 1st
-        return shared.cmd_opts.vae, 'forced'
+    if shared.cmd_opts.vae is not None: # 1st
+        return cast("str", shared.cmd_opts.vae), 'forced'
     if shared.opts.sd_vae == "Default": # 2nd
         return None, None
     vae_near_checkpoint = find_vae_near_checkpoint(checkpoint_file)
@@ -176,6 +176,7 @@ def load_vae(model_file: str, vae_file: str | None = None, vae_source: str | Non
     vae_config = sd_detect.get_load_config(model_file, model_type, config_type='json')
     if vae_config is not None:
         diffusers_load_config['config'] = os.path.join(vae_config, 'vae')
+    vae = None
     try:
         import diffusers
         vae_class = None
@@ -184,38 +185,36 @@ def load_vae(model_file: str, vae_file: str | None = None, vae_source: str | Non
             vae_class = shared.sd_model.vae.__class__
             vae_loader = vae_class.from_single_file if os.path.isfile(vae_file) else vae_class.from_pretrained
         elif os.path.isfile(vae_file):
-            if os.path.getsize(vae_file) > 1310944880: # 1.3GB
+            size = os.path.getsize(vae_file)
+            if size > 1310944880: # 1.3GB
                 vae_class = diffusers.ConsistencyDecoderVAE
                 vae_loader = vae_class.from_pretrained
                 vae_file = 'openai/consistency-decoder'
-            elif os.path.getsize(vae_file) < 10000000: # 10MB
-                vae_class = diffusers.AutoencoderTiny
-                vae_loader = vae_class.from_single_file
+            elif size < 25000000: # 25MB
+                log.error(f'Load module: type=VAE file="{vae_file}" size={size} invalid')
+                vae_loader = None
+                vae_class = None
             else: # fallback
                 vae_class = diffusers.AutoencoderKL
-                # if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
-                #     vae.config.scaling_factor = 0.13025
-                #     log.debug('Setting model: component=VAE fix scaling factor')
-            vae_loader = vae_class.from_single_file
+                vae_loader = vae_class.from_single_file
         else:
             if 'consistency-decoder' in vae_file:
                 vae_class = diffusers.ConsistencyDecoderVAE
             else: # fallback
                 vae_class = diffusers.AutoencoderKL
             vae_loader = vae_class.from_pretrained
+
         if vae_loader is not None:
             log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} cls={vae_class.__name__} config={diffusers_load_config}')
             vae = vae_loader(vae_file, **diffusers_load_config)
             vae = vae.to(devices.dtype_vae)
-
-        global loaded_vae_file # pylint: disable=global-statement
-        loaded_vae_file = os.path.basename(vae_file)
-        # log.debug(f'Diffusers VAE config: {vae.config}')
-        if shared.opts.diffusers_offload_mode == 'none':
-            sd_models.move_model(vae, devices.device)
+            global loaded_vae_file # pylint: disable=global-statement
+            loaded_vae_file = os.path.basename(vae_file)
+            if shared.opts.diffusers_offload_mode == 'none':
+                sd_models.move_model(vae, devices.device)
         return vae
     except Exception as e:
-        log.error(f"Load VAE failed: model={vae_file} {e}")
+        log.error(f"Load module: type=VAE model={vae_file} {e}")
         if debug:
             errors.display(e, 'VAE')
     return None
@@ -230,26 +229,27 @@ def reload_vae_weights(sd_model: DiffusionPipeline | None = None, vae_file = uns
     checkpoint_info = sd_model.sd_checkpoint_info
     checkpoint_file = checkpoint_info.filename
     if vae_file == unspecified:
-        resolved_vae_file, vae_source = resolve_vae(checkpoint_file)
+        vae_file_path, vae_source = resolve_vae(checkpoint_file)
     else:
-        resolved_vae_file = cast("str | None", vae_file)
+        vae_file_path = cast("str | None", vae_file)
         vae_source = "function-argument"
-    if resolved_vae_file is None or vae_file == 'None':
+
+    if vae_file_path is None or vae_file_path == 'None':
         if hasattr(sd_model, 'original_vae'):
             sd_models.set_diffuser_options(sd_model, vae=sd_model.original_vae, op='vae')
             log.info("VAE restored")
             return None
-    if loaded_vae_file == resolved_vae_file:
+    if loaded_vae_file == vae_file_path:
         return None
 
-    if resolved_vae_file is not None and hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
-        vae = load_vae(sd_model.sd_checkpoint_info.filename, resolved_vae_file, vae_source)
+    if vae_file_path is not None and hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
+        vae = load_vae(sd_model.sd_checkpoint_info.filename, vae_file_path, vae_source)
         if vae is not None:
             if not hasattr(sd_model, 'original_vae'):
                 sd_model.original_vae = sd_model.vae
                 sd_models.move_model(sd_model.original_vae, devices.cpu)
             sd_models.set_diffuser_options(sd_model, vae=vae, op='vae')
-            apply_vae_config(sd_model.sd_checkpoint_info.filename, resolved_vae_file, sd_model)
+            apply_vae_config(sd_model.sd_checkpoint_info.filename, vae_file_path, sd_model)
 
     if not shared.cmd_opts.lowvram and not shared.cmd_opts.medvram:
         sd_models.move_model(sd_model, devices.device)

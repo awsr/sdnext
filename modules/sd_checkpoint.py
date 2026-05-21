@@ -148,7 +148,7 @@ def list_models():
             checkpoint_info.register()
     diffusers_list = []
     for repo in modelloader.load_diffusers_models(clear=True):
-        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'], folder=repo['folder'])
+        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'], folder=repo['path'])
         diffusers_list.append(checkpoint_info)
         if checkpoint_info.name is not None:
             checkpoint_info.register()
@@ -359,10 +359,10 @@ def extract_thumbnail(filename, data):
         log.error(f"Error extracting thumbnail: {filename} {e}")
 
 
+def read_metadata_from_safetensors(filename: str):
     global sd_metadata # pylint: disable=global-statement
     if sd_metadata is None:
         sd_metadata = shared.readfile(sd_metadata_file, lock=True, as_type="dict") if os.path.isfile(sd_metadata_file) else {}
-def read_metadata_from_safetensors(filename: str):
     res = sd_metadata.get(filename, None)
     if res is not None:
         return res

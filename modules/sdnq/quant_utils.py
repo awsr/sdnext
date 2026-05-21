@@ -1,7 +1,8 @@
+import math
 import torch
 
 from modules import devices
-from .common import dtype_dict, use_contiguous_mm
+from .common import dtype_dict, use_contiguous_mm, conv_types, conv_transpose_types
 
 
 @devices.inference_context()
@@ -71,6 +72,76 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
     return weight, svd_up, svd_down
 
 
+HADAMARD_N2_MATRIX = [[1, 1], [1, -1]]
+@devices.inference_context()
+def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+    if n == 1:
+        return torch.ones((1, 1), dtype=dtype, device=device)
+    H = torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device)
+    current_size = 2
+    while current_size < n:
+        H = torch.kron(H, torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device))
+        current_size *= 2
+    H = H.div_(n**0.5)
+    H = prepare_weight_for_matmul(H)
+    return H
+
+
+# 128x128 Hadamard matrix is just 64 KB at FP32
+# And is the exact same matrix on all model layers
+# So we can safely cache a single one
+HADAMARD_MATRIX_CACHE = {}
+@devices.inference_context()
+def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+    global HADAMARD_MATRIX_CACHE
+    device = devices.normalize_device(device)
+    if HADAMARD_MATRIX_CACHE.get(n, None) is None:
+        HADAMARD_MATRIX_CACHE[n] = {}
+    if HADAMARD_MATRIX_CACHE[n].get(device, None) is None:
+        HADAMARD_MATRIX_CACHE[n][device] = {}
+    if HADAMARD_MATRIX_CACHE[n][device].get(dtype, None) is None:
+        HADAMARD_MATRIX_CACHE[n][device][dtype] = build_hadamard(n, dtype=dtype, device=device)
+    return HADAMARD_MATRIX_CACHE[n][device][dtype]
+
+
+@devices.inference_context()
+def rotate_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.Tensor | None = None, is_conv: bool = False) -> torch.Tensor:
+    if hadamard is None:
+        hadamard = get_hadamard(group_size, dtype=weight.dtype, device=weight.device)
+    else:
+        group_size = hadamard.shape[-1]
+    if is_conv:
+        weight_shape = list(weight.shape)[1:]
+        weight = weight.flatten(1,-1)
+    weight = weight.unflatten(-1, (-1,group_size))
+    result = torch.matmul(weight, hadamard).flatten(-2,-1)
+    del hadamard
+    if is_conv:
+        result = result.unflatten(-1, weight_shape)
+    return result
+
+
+@devices.inference_context()
+def apply_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.Tensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
+    is_conv = False
+    use_hadamard = True
+    if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
+        is_conv = True
+        channel_size = weight.shape[1]
+    else:
+        channel_size = weight.shape[-1]
+    if channel_size % group_size != 0:
+        hadamard_pow2 = int(math.log2(group_size))
+        while channel_size % group_size != 0:
+            hadamard_pow2 -= 1
+            group_size = 2 ** hadamard_pow2
+    if group_size < 4:
+        use_hadamard = False
+    if use_hadamard:
+        weight = rotate_hadamard(weight, group_size=group_size, is_conv=is_conv)
+    return weight, use_hadamard, group_size
+
+
 @devices.inference_context()
 def prepare_weight_for_matmul(weight: torch.Tensor) -> torch.Tensor:
     if use_contiguous_mm:
@@ -90,3 +161,42 @@ def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTenso
     if svd_down is not None:
         svd_down = prepare_weight_for_matmul(svd_down)
     return svd_up, svd_down
+
+
+@devices.inference_context()
+def quantize_int_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
+    input = torch.div(input, scale).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale
+
+
+@devices.inference_context()
+def quantize_int_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
+    input = torch.div(input, scale).add_(torch.randn_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale
+
+
+@devices.inference_context()
+def quantize_fp_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
+    input = torch.div(input, scale).nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale
+
+
+@devices.inference_context()
+def quantize_fp_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    mantissa_difference = 1 << (23 - dtype_dict[matmul_dtype]["mantissa"])
+    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
+    input = torch.div(input, scale).to(dtype=torch.float32).view(dtype=torch.int32)
+    input = input.add_(torch.randint_like(input, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
+    input = input.nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale

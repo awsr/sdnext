@@ -1,5 +1,5 @@
 <div align="center">
-<img src="https://github.com/vladmandic/sdnext/raw/master/html/logo-transparent.png" width=200 alt="SD.Next: AI art generator logo">
+<img src="https://github.com/vladmandic/sdnext/raw/dev/ui/assets/logo-transparent.png" width=200 alt="SD.Next: AI art generator logo">
 
 # SD.Next: All-in-one WebUI
 
@@ -30,7 +30,7 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 ### Screenshot: Desktop interface
 
 <div align="center">
-<img src="https://github.com/vladmandic/sdnext/raw/dev/html/screenshot-robot.jpg" alt="SD.Next: AI art generator desktop interface screenshot" width="90%">
+<img src="https://github.com/vladmandic/sdnext/raw/dev/ui/assets/screenshot-robot.jpg" alt="SD.Next: AI art generator desktop interface screenshot" width="90%">
 </div>
 
 ### Screenshot: Mobile interface
@@ -112,7 +112,7 @@ And for any question, reach out on [Discord](https://discord.gg/VjvR2tabEX) or o
 
 ### Contributing
 
-Please see [Contributing](CONTRIBUTING) for details on how to contribute to this project  
+Please see [Contributing](https://raw.githubusercontent.com/vladmandic/sdnext/refs/heads/dev/CONTRIBUTING) for details on how to contribute to this project  
 
 ## License & Credits
 

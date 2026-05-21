@@ -1,5 +1,10 @@
 # TODO
 
+## Issues
+
+- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
+- Torch lazy-load
+
 ## Features
 
 ### Assigned
@@ -7,7 +12,6 @@
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic
-- Change params to default, @vladmandic
 
 - Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness
@@ -54,13 +58,13 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
-- [JoyAI-Image-Edit](https://github.com/huggingface/diffusers/pull/13444) (pr in-progress)
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B) (in diffusers)
 - [nVidia Cosmos-Transfer-2.5](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B) (in diffusers)
 - [Tencent HY-WU](https://huggingface.co/tencent/HY-WU) (transformers-compatible)
 
 ### Video
 
+- [ByteDance Lance](https://github.com/bytedance/Lance)
 - [HY-OmniWeaving](https://huggingface.co/tencent/HY-OmniWeaving)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p)
 - [Wan2.2-Animate](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
@@ -156,20 +160,16 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 > npm run todo
 
 ```code
-installer.py:TODO rocm: switch to pytorch source when it becomes available
-modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
-modules/history.py:TODO: apply metadata, preview, load/save
-modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
-modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1
-modules/masking.py:TODO: additional masking algorithms
-modules/modular_guiders.py:TODO: guiders
-modules/processing_class.py:TODO processing: remove duplicate mask params
-modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
-modules/sd_models.py:TODO model load: implement model in-memory caching
-modules/sd_samplers_diffusers.py:TODO enso-required
-modules/sd_unet.py:TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
-modules/transformer_cache.py:TODO fc: autodetect distilled based on model
-modules/transformer_cache.py:TODO fc: autodetect tensor format based on model
-modules/ui_models_load.py:TODO loader: load receipe
-modules/ui_models_load.py:TODO loader: save receipe
+installer.py:652:15: W0511: TODO rocm: switch to pytorch source when it becomes available (fixme)
+modules/sd_models_compile.py:90:5: W0511: TODO pruna: enable when it supports transformers==5.5 (fixme)
+modules/transformer_cache.py:29:61: W0511: TODO fc: autodetect tensor format based on model (fixme)
+modules/transformer_cache.py:30:50: W0511: TODO fc: autodetect distilled based on model (fixme)
+modules/processing_class.py:406:32: W0511: TODO processing: remove duplicate mask params (fixme)
+modules/sd_samplers_diffusers.py:370:31: W0511: TODO enso-required (fixme)
+modules/sd_models.py:1424:5: W0511: TODO model load: implement model in-memory caching (fixme)
+modules/ui_models_load.py:257:5: W0511: TODO loader: load receipe (fixme)
+modules/ui_models_load.py:264:5: W0511: TODO loader: save receipe (fixme)
+modules/sd_hijack_hypertile.py:123:17: W0511: TODO hypertile: vae breaks when using non-standard sizes (fixme)
+modules/sd_unet.py:77:39: W0511: TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage (fixme)
+modules/modular_guiders.py:66:51: W0511: TODO: guiders (fixme)
 ```
